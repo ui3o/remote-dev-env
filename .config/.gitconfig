@@ -1,0 +1,7 @@
+[http]
+	sslverify = false
+[safe]
+	directory = *
+[user]
+	name = user
+	email = mail

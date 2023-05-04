@@ -1,0 +1,4 @@
+#compdef make
+local -a subcmds
+subcmds=("${(@f)$(node ~/.oh-my-zsh/custom/plugins/make/index.js)}")
+_describe 'make' subcmds
