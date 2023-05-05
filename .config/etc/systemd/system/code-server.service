@@ -1,0 +1,14 @@
+[Unit]
+Description=code-server.service
+
+[Service]
+ExecStart=/usr/bin/su -l podman /usr/bin/code-server
+User=root
+StandardOutput=inherit
+StandardError=inherit
+WorkingDirectory=/home/podman
+EnvironmentFile=/etc/boot.env
+
+[Install]
+WantedBy=container-entrypoint.target
+
