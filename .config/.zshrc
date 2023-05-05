@@ -2,6 +2,15 @@
 # source /etc/environment
 export USER="podman"
 export PATH="/home/$USER/npm/bin:$PATH"
+
+if [[ -z "${BOOT}" ]]; then
+  echo initializing...
+  export BOOT="true"
+  sudo chown -R podman:podman ~/.local/share/containers/
+  git config --global user.name "$DEV_CONT_COMITTER_NAME"
+  git config --global user.email "$DEV_CONT_COMITTER_EMAIL"
+fi
+
 # export WSLINITIALIZER="$USERPROFILE/.config/wsl-initializer" 
 # source $USERPROFILE/.config/wsl-initializer/.configrc
 
@@ -112,8 +121,8 @@ source $ZSH/oh-my-zsh.sh
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
 # For a full list of active aliases, run `alias`.
-#
 # Example aliases
+alias sudo="sudo -E"
 alias docker="podman"
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"

@@ -1,0 +1,16 @@
+[Unit]
+Description=docker-entrypoint.service
+
+[Service]
+ExecStart=/bin/bash -exc "source /etc/docker-entrypoint-cmd"
+ExecStopPost=systemctl exit 0
+User=root
+StandardInput=tty-force
+StandardOutput=inherit
+StandardError=inherit
+WorkingDirectory=/root
+# EnvironmentFile=/etc/docker-entrypoint-env
+
+[Install]
+WantedBy=multi-user.target
+
