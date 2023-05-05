@@ -9,7 +9,7 @@
 FROM registry.fedoraproject.org/fedora:latest
 
 # ARGS
-ARG ARCH=none
+ARG ARCH=amd64
 
 # default configs
 ENV CODE_SERVER_VERSION="4.12.0"
