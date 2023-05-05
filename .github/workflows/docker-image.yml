@@ -11,7 +11,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
     - name: Get tag
+      id: tag
       uses: dawidd6/action-get-tag@v1
+    - name: Use tag
+      run: echo ${{steps.tag.outputs.tag}}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
     - name: Set up Docker Buildx
@@ -26,5 +29,5 @@ jobs:
       with:
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: ui3o/remote-dev-env:latest,ui3o/remote-dev-env:${{ steps.tag.outputs.tag }}  
+        tags: ui3o/remote-dev-env:latest,ui3o/remote-dev-env:${{steps.tag.outputs.tag}}  
 
