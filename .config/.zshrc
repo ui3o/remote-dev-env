@@ -3,14 +3,6 @@
 export USER="podman"
 export PATH="/home/$USER/npm/bin:$PATH"
 
-if [[ -z "${BOOT}" ]]; then
-  echo initializing...
-  export BOOT="true"
-  sudo chown -R podman:podman ~/.local/share/containers/
-  git config --global user.name "$DEV_CONT_COMITTER_NAME"
-  git config --global user.email "$DEV_CONT_COMITTER_EMAIL"
-fi
-
 # export WSLINITIALIZER="$USERPROFILE/.config/wsl-initializer" 
 # source $USERPROFILE/.config/wsl-initializer/.configrc
 

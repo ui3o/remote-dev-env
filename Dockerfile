@@ -71,6 +71,7 @@ RUN code-server --install-extension carlos-algms.make-task-provider;\
 
 # git setup
 COPY ./.config/.gitconfig /home/podman/.gitconfig
+COPY ./.config/.gitconfig /root/.gitconfig
 # install oh-my-zsh
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 RUN git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab
@@ -134,5 +135,5 @@ STOPSIGNAL SIGRTMIN+3
 
 WORKDIR /home/podman
 COPY ./.config/etc/ /etc/
-ENTRYPOINT ["/etc/systemd/system/docker-entrypoint.sh"]
+ENTRYPOINT ["/etc/systemd/system/container-entrypoint.sh"]
 
