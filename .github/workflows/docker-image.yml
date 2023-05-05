@@ -24,8 +24,8 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: Build and push
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
-        tags: ui3o/remote-dev-env:${{steps.tag.outputs.tag}}
+        tags: ui3o/remote-dev-env:latest,ui3o/remote-dev-env:${{ steps.tag.outputs.tag }}  
 
