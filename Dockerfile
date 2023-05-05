@@ -28,6 +28,7 @@ RUN dnf -y update; yum -y reinstall shadow-utils; \
     cmatrix\
     cowsay\
     htop\
+    procps-ng\
     ncdu\
     xz\
     ranger\
