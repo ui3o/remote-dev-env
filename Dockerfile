@@ -8,6 +8,9 @@
 #
 FROM registry.fedoraproject.org/fedora:latest
 
+# ARGS
+ARG ARCH=none
+
 # default configs
 ENV CODE_SERVER_VERSION="4.12.0"
 
@@ -56,7 +59,7 @@ RUN useradd podman; \
 
 # install vscode server
 # version can be checked here https://github.com/coder/code-server/releases
-RUN curl -fL https://github.com/coder/code-server/releases/download/v$CODE_SERVER_VERSION/code-server-$CODE_SERVER_VERSION-amd64.rpm -o /tmp/code-server.rpm;\
+RUN curl -fL https://github.com/coder/code-server/releases/download/v$CODE_SERVER_VERSION/code-server-$CODE_SERVER_VERSION-$ARCH.rpm -o /tmp/code-server.rpm;\
     rpm -i /tmp/code-server.rpm
 COPY config.yaml /home/podman/.config/code-server/config.yaml
 RUN mkdir -m 0755 /nix && chown podman /nix
