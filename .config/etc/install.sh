@@ -63,7 +63,7 @@ sudo su - podman /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/i
 
 # install nix
 echo install nix and nodejs...
-csudo su - podman url -L https://nixos.org/nix/install | sh -s -- --no-daemon
+sudo su - podman curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
 sudo mkdir -m 0755 /nix
 sudo chown podman /nix
 # install nodejs
