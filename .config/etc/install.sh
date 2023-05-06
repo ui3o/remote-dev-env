@@ -55,22 +55,22 @@ sudo sed -i "s|</head>|\
 
 # install oh-my-zsh
 echo install oh-my-zsh...
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab
+sudo su - podman sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+sudo su - podman git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab
 # install powerlevel10k prompt
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
-/home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
+sudo su - podman git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+sudo su - podman /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
 
 # install nix
 echo install nix and nodejs...
-curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+csudo su - podman url -L https://nixos.org/nix/install | sh -s -- --no-daemon
 sudo mkdir -m 0755 /nix
 sudo chown podman /nix
 # install nodejs
-/home/podman/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
-/home/podman/.nix-profile/bin/npm config set prefix "/home/podman/npm"
+/sudo su - podman home/podman/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
+/sudo su - podman home/podman/.nix-profile/bin/npm config set prefix "/home/podman/npm"
 # install jji
-/home/podman/.nix-profile/bin/npm i -g jji
+/sudo su - podman home/podman/.nix-profile/bin/npm i -g jji
 
 # setup file system for podman
 echo setup file system for podman...
