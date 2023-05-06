@@ -17,10 +17,23 @@ rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 # setup podman user
 echo setup podman user...
-sudo useradd podman
-sudo echo podman:10000:5000 >/etc/subuid
-sudo echo podman:10000:5000 >/etc/subgid
-sudo usermod --shell /usr/bin/zsh podman
+useradd podman
+echo podman:10000:5000 >/etc/subuid
+echo podman:10000:5000 >/etc/subgid
+usermod --shell /usr/bin/zsh podman
+
+# setup file system for podman
+echo setup file system for podman...
+mkdir -p /home/podman/.config/containers
+curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -o /etc/containers/containers.conf
+curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf -o /home/podman/.config/containers/containers.conf
+# chmod containers.conf and adjust storage.conf to enable Fuse storage.
+chmod 644 /etc/containers/containers.conf
+mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers
+touch /var/lib/shared/overlay-images/images.lock
+touch /var/lib/shared/overlay-layers/layers.lock
+touch /var/lib/shared/vfs-images/images.lock
+touch /var/lib/shared/vfs-layers/layers.lock
 
 # setup vscode-server
 # version can be checked here https://github.com/coder/code-server/releases
@@ -39,9 +52,9 @@ code-server --install-extension vscjava.vscode-maven
 code-server --install-extension wmanth.jar-viewer
 # install MeslolGS font for vscode
 cd /usr/lib/code-server/src/browser/pages
-sudo curl -O "https://demyx.sh/fonts/{meslolgs-nf-regular.woff,meslolgs-nf-bold.woff,meslolgs-nf-italic.woff,meslolgs-nf-bold-italic.woff}"
+curl -O "https://demyx.sh/fonts/{meslolgs-nf-regular.woff,meslolgs-nf-bold.woff,meslolgs-nf-italic.woff,meslolgs-nf-bold-italic.woff}"
 CODE_WORKBENCH="$(find /usr/lib/code-server -name "*workbench.html")"
-sudo sed -i "s|</head>|\
+sed -i "s|</head>|\
 <style> \n\
     @font-face { \n\
     font-family: 'MesloLGS NF'; \n\
@@ -55,31 +68,19 @@ sudo sed -i "s|</head>|\
 
 # install oh-my-zsh
 echo install oh-my-zsh...
-sudo su - podman sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-sudo su - podman git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab
+chown podman:podman -R /home/podman
+mv /home/podman/.oh-my-zsh /tmp
+su - podman -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+su - podman -c 'git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab'
 # install powerlevel10k prompt
-sudo su - podman git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
-sudo su - podman /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
-
+su - podman -c 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k'
+su - podman -c /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
+cp -R /tmp/.oh-my-zsh/* /home/podman/.oh-my-zsh && rm -rf /tmp/.oh-my-zsh
 # install nix
 echo install nix and nodejs...
-sudo su - podman curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
-sudo mkdir -m 0755 /nix
-sudo chown podman /nix
+su - podman -c 'curl -L https://nixos.org/nix/install | sh -s -- --no-daemon'
 # install nodejs
-/sudo su - podman home/podman/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
-/sudo su - podman home/podman/.nix-profile/bin/npm config set prefix "/home/podman/npm"
+su - podman -c '/home/podman/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz'
+su - podman -c '/home/podman/.nix-profile/bin/npm config set prefix "/home/podman/npm"'
 # install jji
-/sudo su - podman home/podman/.nix-profile/bin/npm i -g jji
-
-# setup file system for podman
-echo setup file system for podman...
-sudo curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -o /etc/containers/containers.conf
-curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf -o /home/podman/.config/containers/containers.conf
-# chmod containers.conf and adjust storage.conf to enable Fuse storage.
-sudo chmod 644 /etc/containers/containers.conf
-sudo mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers
-sudo touch /var/lib/shared/overlay-images/images.lock
-sudo touch /var/lib/shared/overlay-layers/layers.lock
-sudo touch /var/lib/shared/vfs-images/images.lock
-sudo touch /var/lib/shared/vfs-layers/layers.lock
+su - podman -c '/home/podman/.nix-profile/bin/npm i -g jji'
