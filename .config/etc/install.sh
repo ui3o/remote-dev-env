@@ -31,15 +31,14 @@ touch /var/lib/shared/vfs-layers/layers.lock
 
 # install oh-my-zsh
 echo install oh-my-zsh...
-mkdir -p /home/podman/npm
-chown podman:podman -R /home/podman
-mv /home/podman/.oh-my-zsh /tmp
+tar -cvzpf /tmp/backup.tar.gz /home/podman && rm -rf /home/podman
+mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
 su - podman -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
 su - podman -c 'git clone https://github.com/Aloxaf/fzf-tab ~/.oh-my-zsh/custom/plugins/fzf-tab'
 # install powerlevel10k prompt
 su - podman -c 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k'
 su - podman -c /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
-cp -R /tmp/.oh-my-zsh/* /home/podman/.oh-my-zsh && rm -rf /tmp/.oh-my-zsh
+tar -xvzpf /tmp/backup.tar.gz -C / && chown podman:podman -R /home/podman
 # install nix
 echo install nix...
 su - podman -c 'curl -L https://nixos.org/nix/install | sh -s -- --no-daemon'

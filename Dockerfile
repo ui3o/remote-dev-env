@@ -15,7 +15,7 @@ RUN echo "podman ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers.d/podman
 # install base packages
 RUN dnf -y update;\
     dnf -y reinstall shadow-utils;\
-    dnf -y install man openssh openssh-clients ca-certificates gnupg net-tools git-lfs cmatrix cowsay htop sssd sssd-tools procps-ng ncdu xz ranger wget zsh git neovim tmux fzf make tree unzip systemd podman fuse-overlayfs --exclude container-selinux;\
+    dnf -y install rsync man openssh openssh-clients ca-certificates gnupg net-tools git-lfs cmatrix cowsay htop sssd sssd-tools procps-ng ncdu xz ranger wget zsh git neovim tmux fzf make tree unzip systemd podman fuse-overlayfs --exclude container-selinux;\
     rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 COPY ./.config/user/ /home/podman/
