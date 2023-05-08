@@ -13,6 +13,7 @@ fi
 
 export HOME="/home/podman"
 env >>/etc/boot.env
+export HOME="/root"
 
 systemctl mask systemd-journald-audit.socket sys-kernel-config.mount sys-kernel-debug.mount sys-kernel-tracing.mount systemd-firstboot.service systemd-udevd.service systemd-modules-load.service
 systemctl unmask systemd-logind
