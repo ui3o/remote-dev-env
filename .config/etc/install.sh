@@ -10,14 +10,14 @@ fi
 echo start install on $ARCH architecture...
 
 # setup podman user
-echo setup podman user...
+echo [$ARCH] setup podman user...
 useradd podman
 echo podman:10000:5000 >/etc/subuid
 echo podman:10000:5000 >/etc/subgid
 usermod --shell /usr/bin/zsh podman
 
 # setup file system for podman
-echo setup file system for podman...
+echo [$ARCH] setup file system for podman...
 mkdir -p /home/podman/.config/containers
 curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -o /etc/containers/containers.conf
 curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf -o /home/podman/.config/containers/containers.conf
@@ -30,7 +30,7 @@ touch /var/lib/shared/vfs-images/images.lock
 touch /var/lib/shared/vfs-layers/layers.lock
 
 # install oh-my-zsh
-echo install oh-my-zsh...
+echo [$ARCH] install oh-my-zsh...
 tar -cvzpf /tmp/backup.tar.gz /home/podman && rm -rf /home/podman
 mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
 su - podman -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
@@ -40,19 +40,19 @@ su - podman -c 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git
 su - podman -c /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
 tar -xvzpf /tmp/backup.tar.gz -C / && chown podman:podman -R /home/podman
 # install nix
-echo install nix...
+echo [$ARCH] install nix...
 su - podman -c 'curl -L https://nixos.org/nix/install | sh -s -- --no-daemon'
 # install nodejs
-echo install nodejs...
+echo [$ARCH] install nodejs...
 su - podman -c '/home/podman/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz'
 su - podman -c '/home/podman/.nix-profile/bin/npm config set prefix "/home/podman/npm"'
 # install jji
-echo install jji...
+echo [$ARCH] install jji...
 su - podman -c '/home/podman/.nix-profile/bin/npm i -g jji'
 
 # setup vscode-server
 # version can be checked here https://github.com/coder/code-server/releases
-echo setup vscode-server...
+echo [$ARCH] setup vscode-server...
 curl -fL https://github.com/coder/code-server/releases/download/v$CODE_SERVER_VERSION/code-server-$CODE_SERVER_VERSION-$ARCH.rpm -o /tmp/code-server.rpm
 rpm -i /tmp/code-server.rpm
 code-server --install-extension carlos-algms.make-task-provider
@@ -80,3 +80,4 @@ sed -i "s|</head>|\
     url('_static/src/browser/pages/meslolgs-nf-bold-italic.woff') format('woff'); \n\
 } \n\
 \n\</style></head>|g" "$CODE_WORKBENCH"
+echo [$ARCH] finish install.sh...
