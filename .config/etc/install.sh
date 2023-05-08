@@ -59,16 +59,16 @@ su - podman -c '/home/podman/.nix-profile/bin/npm i -g jji'
 echo [$ARCH] setup vscode-server...
 curl -fL https://github.com/coder/code-server/releases/download/v$CODE_SERVER_VERSION/code-server-$CODE_SERVER_VERSION-$ARCH.rpm -o /tmp/code-server.rpm
 rpm -i /tmp/code-server.rpm
-code-server --install-extension carlos-algms.make-task-provider
-code-server --install-extension ms-vscode.makefile-tools
-code-server --install-extension redhat.java
-code-server --install-extension vscjava.vscode-java-debug
-code-server --install-extension vscjava.vscode-java-dependency
-code-server --install-extension vscjava.vscode-java-pack
-code-server --install-extension vscjava.vscode-java-test
-code-server --install-extension vscjava.vscode-maven
-code-server --install-extension wmanth.jar-viewer
-code-server --install-extension KylinIDETeam.gitlens
+su - podman -c 'code-server --install-extension carlos-algms.make-task-provider'
+su - podman -c 'code-server --install-extension ms-vscode.makefile-tools'
+su - podman -c 'code-server --install-extension redhat.java'
+su - podman -c 'code-server --install-extension vscjava.vscode-java-debug'
+su - podman -c 'code-server --install-extension vscjava.vscode-java-dependency'
+su - podman -c 'code-server --install-extension vscjava.vscode-java-pack'
+su - podman -c 'code-server --install-extension vscjava.vscode-java-test'
+su - podman -c 'code-server --install-extension vscjava.vscode-maven'
+su - podman -c 'code-server --install-extension wmanth.jar-viewer'
+su - podman -c 'code-server --install-extension KylinIDETeam.gitlens'
 # install MeslolGS font for vscode
 cd /usr/lib/code-server/src/browser/pages
 curl -O "https://demyx.sh/fonts/{meslolgs-nf-regular.woff,meslolgs-nf-bold.woff,meslolgs-nf-italic.woff,meslolgs-nf-bold-italic.woff}"

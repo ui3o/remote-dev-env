@@ -11,6 +11,7 @@ else
 	echo "${quoted_args}" >>/etc/boot.sh
 fi
 
+export HOME="/home/podman"
 env >>/etc/boot.env
 
 systemctl mask systemd-journald-audit.socket sys-kernel-config.mount sys-kernel-debug.mount sys-kernel-tracing.mount systemd-firstboot.service systemd-udevd.service systemd-modules-load.service

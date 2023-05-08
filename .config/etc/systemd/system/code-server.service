@@ -2,8 +2,8 @@
 Description=code-server.service
 
 [Service]
-ExecStart=/usr/bin/su -l podman /usr/bin/code-server
-User=root
+ExecStart=/usr/bin/code-server
+User=podman
 StandardOutput=inherit
 StandardError=inherit
 WorkingDirectory=/home/podman
