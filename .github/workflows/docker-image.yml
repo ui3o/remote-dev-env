@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: "[amd64] Docker Image CI"
 on:
   push:
     tags:        

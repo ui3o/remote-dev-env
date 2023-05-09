@@ -5,15 +5,14 @@ container=podman
 export container
 
 if [ $# -eq 0 ]; then
-	echo "bash" >>/etc/boot.sh
+	echo "bash" >>/etc/root.sh
 else
 	quoted_args="$(printf " %q" "${@}")"
-	echo "${quoted_args}" >>/etc/boot.sh
+	echo "${quoted_args}" >>/etc/root.sh
 fi
 
-export HOME="/home/podman"
-env >>/etc/boot.env
-export HOME="/root"
+HOME="/home/podman" env >>/etc/user.env
+env >>/etc/root.env
 
 systemctl mask systemd-journald-audit.socket sys-kernel-config.mount sys-kernel-debug.mount sys-kernel-tracing.mount systemd-firstboot.service systemd-udevd.service systemd-modules-load.service
 systemctl unmask systemd-logind

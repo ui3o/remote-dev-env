@@ -2,14 +2,14 @@
 Description=container.service
 
 [Service]
-ExecStart=/bin/bash -exc "source /etc/boot.sh"
+ExecStart=/bin/bash -exc "source /etc/root.sh"
 ExecStopPost=systemctl exit 0
 User=root
 StandardInput=tty-force
 StandardOutput=inherit
 StandardError=inherit
 WorkingDirectory=/root
-EnvironmentFile=/etc/boot.env
+EnvironmentFile=/etc/root.env
 
 [Install]
 WantedBy=multi-user.target

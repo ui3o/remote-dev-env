@@ -7,7 +7,7 @@ User=podman
 StandardOutput=inherit
 StandardError=inherit
 WorkingDirectory=/home/podman
-EnvironmentFile=/etc/boot.env
+EnvironmentFile=/etc/user.env
 
 [Install]
 WantedBy=container-entrypoint.target
