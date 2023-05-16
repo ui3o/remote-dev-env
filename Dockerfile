@@ -1,22 +1,16 @@
-FROM registry.fedoraproject.org/fedora:latest
+FROM docker.io/archlinux:latest
 
 # ARGS
 ARG ARCH=amd64
 
-# default configs
-ENV CODE_SERVER_VERSION="4.12.0"
-
 EXPOSE 8080
+
+# install base packages
+RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux fzf make tree unzip podman fuse-overlayfs
 
 # add sudo privileges to podman
 RUN echo "@includedir /etc/sudoers.d" >> /etc/sudoers
 RUN echo "podman ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers.d/podman
-
-# install base packages
-RUN dnf -y update;\
-    dnf -y reinstall shadow-utils;\
-    dnf -y install rsync man openssh openssh-clients ca-certificates gnupg net-tools git-lfs cmatrix cowsay htop sssd sssd-tools procps-ng ncdu xz ranger wget zsh git neovim tmux fzf make tree unzip systemd podman fuse-overlayfs --exclude container-selinux;\
-    rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 COPY ./.config/user/ /home/podman/
 COPY ./.config/etc/ /etc/
@@ -45,9 +39,17 @@ RUN echo [$ARCH] setup file system for podman... && \
     touch /var/lib/shared/vfs-images/images.lock && \
     touch /var/lib/shared/vfs-layers/layers.lock
 
+RUN echo [$ARCH] create home folder backup... && \
+    tar -cvzpf /tmp/backup.tar.gz /home/podman && rm -rf /home/podman && \
+    mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
+
+USER podman
+# setup vscode-server
+# version can be checked here https://github.com/coder/code-server/releases
 RUN echo [$ARCH] setup vscode-server... && \
-    curl -fL https://github.com/coder/code-server/releases/download/v$CODE_SERVER_VERSION/code-server-$CODE_SERVER_VERSION-$ARCH.rpm -o /tmp/code-server.rpm && \
-    rpm -i /tmp/code-server.rpm && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s;
+USER root
+RUN rm -rf /home/podman/.cache/code-server;\
     cd /usr/lib/code-server/src/browser/pages && \
     curl -O "https://demyx.sh/fonts/{meslolgs-nf-regular.woff,meslolgs-nf-bold.woff,meslolgs-nf-italic.woff,meslolgs-nf-bold-italic.woff}" && \
     CODE_WORKBENCH="$(find /usr/lib/code-server -name "*workbench.html")" && \
@@ -62,12 +64,8 @@ RUN echo [$ARCH] setup vscode-server... && \
         url('_static/src/browser/pages/meslolgs-nf-bold-italic.woff') format('woff'); \n\
     } \n\
     \n\</style></head>|g" "$CODE_WORKBENCH"
-
-# install oh-my-zsh
-RUN echo [$ARCH] create home folder backup... && \
-    tar -cvzpf /tmp/backup.tar.gz /home/podman && rm -rf /home/podman && \
-    mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
 USER podman
+
 RUN echo [$ARCH] install oh-my-zsh... && \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
     git clone https://github.com/Aloxaf/fzf-tab /home/podman/.oh-my-zsh/custom/plugins/fzf-tab && \
@@ -92,8 +90,7 @@ RUN echo [$ARCH] install nodejs... && \
     echo [$ARCH] install jji... && \
     /home/podman/.nix-profile/bin/npm i -g jji
 
-# setup vscode-server
-# version can be checked here https://github.com/coder/code-server/releases
+# setup vscode-server extensions
 RUN echo [$ARCH] install code-server extensions... && \
     code-server --install-extension carlos-algms.make-task-provider && \
     code-server --install-extension ms-vscode.makefile-tools && \
