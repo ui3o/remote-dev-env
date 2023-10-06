@@ -13,7 +13,7 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# OTP program setup
+# NODE_PATH program setup
 export NODE_PATH="/home/$USER/npm/lib/node_modules"
 
 # Path to your oh-my-zsh installation.
@@ -88,7 +88,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(git npm fzf fzf-tab)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(oc git npm fzf fzf-tab make)
+plugins=(pol oc git npm fzf fzf-tab make)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -120,10 +120,6 @@ alias docker="podman"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 if [ -e /home/$USER/.nix-profile/etc/profile.d/nix.sh ]; then . /home/$USER/.nix-profile/etc/profile.d/nix.sh; fi
 source /home/$USER/.zshenv
-
-# custom podman setup
-# TODO: run on boot only
-# sudo sysctl -w vm.max_map_count=262144 > /dev/null
 
 # custom function
 q() {

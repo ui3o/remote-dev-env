@@ -10,4 +10,4 @@ Development environmnet for java and nodejs developers.
 * [vscode-server](https://github.com/coder/code-server)
 * tmux
 * [nix pakage manager](https://nixos.org/)
-
+* set this on OS: `sysctl -w vm.max_map_count=262144`

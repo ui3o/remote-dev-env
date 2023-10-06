@@ -1,4 +1,0 @@
-[Unit]
-Description=the target for container-entrypoint.service
-Requires=container-entrypoint.service systemd-logind.service systemd-user-sessions.service code-server.service
-
