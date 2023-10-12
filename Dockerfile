@@ -112,15 +112,24 @@ RUN /home/podman/npm/bin/pol completion zsh
 
 USER root
 
+VOLUME /var/lib/shared-containers
+RUN podman system reset | true
+RUN rm -rf /home/podman/.local/share/containers /var/lib/containers/storage/overlay /var/lib/containers/storage/overlay-images /var/lib/containers/storage/overlay-layers && \
+    ln -sf /var/lib/shared-containers/overlay /var/lib/containers/storage/overlay && \
+    ln -sf /var/lib/shared-containers/overlay-images /var/lib/containers/storage/overlay-images && \
+    ln -sf /var/lib/shared-containers/overlay-layers /var/lib/containers/storage/overlay-layers
+RUN /home/podman/npm/bin/pol completion zsh
+
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 ENV PATH="/root/.nix-profile/bin/:$PATH"
 
 RUN sudo chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
-RUN chown podman:podman -R /home/podman
+RUN chown -R podman:podman /home/podman && \
+    mkdir -p /home/podman/.local/share/containers
 
 STOPSIGNAL SIGRTMIN+3
 WORKDIR /home/podman
 
 USER podman
 
-ENTRYPOINT ["sudo","/etc/pol/container-entrypoint.sh"]
+ENTRYPOINT ["sudo", "-E", "/etc/pol/container-entrypoint.sh"]
