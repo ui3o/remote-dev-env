@@ -20,7 +20,7 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 
-if [[ -z "${ZSH}" ]]; then
-	su -l podman
-	exit 0
-fi
+# if [[ -z "${ZSH}" ]]; then
+# 	su -l podman
+# 	exit 0
+# fi

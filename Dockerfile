@@ -121,7 +121,7 @@ RUN rm -rf /home/podman/.local/share/containers /var/lib/containers/storage/over
 RUN /home/podman/npm/bin/pol completion zsh
 
 ENV _CONTAINERS_USERNS_CONFIGURED=""
-ENV PATH="/root/.nix-profile/bin/:$PATH"
+ENV PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/$USER/npm/bin:$PATH"
 
 RUN sudo chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 RUN chown -R podman:podman /home/podman && \
