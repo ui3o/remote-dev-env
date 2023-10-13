@@ -6,7 +6,10 @@ ARG ARCH=amd64
 EXPOSE 8080
 
 # install base packages
-RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux fzf make tree unzip podman fuse-overlayfs
+RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc \
+    openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay \
+    htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux \
+    fzf make tree unzip podman fuse-overlayfs less
 
 # add sudo privileges to podman
 RUN echo "@includedir /etc/sudoers.d" >> /etc/sudoers
