@@ -15,6 +15,6 @@ build-amd64: wget-service-types
 build-arm64:
 	podman build --build-arg=ARCH=arm64 --tag local-remote-dev-env .
 make-cert:
-	openssl req -x509 -newkey rsa:4096 -keyout cert/server_key.pem -out cert/server_cert.pem -nodes -days 1825 -subj "/CN=ice.corp.otpbank.hu/O=root\ ice\ certificate"
-	openssl req -newkey rsa:4096 -keyout cert/wildcard_ice_key.pem -out cert/wildcard_ice_csr.pem -nodes -days 1825 -subj "/CN=*.ice.corp.otpbank.hu/O=corp.otpbank.hu/OU=otpbank.hu/L=Budapest/ST=Budapest/C=HU"
+	openssl req -x509 -newkey rsa:4096 -keyout cert/server_key.pem -out cert/server_cert.pem -nodes -days 1825 -subj "/CN=ice.corp.us/O=root\ ice\ certificate"
+	openssl req -newkey rsa:4096 -keyout cert/wildcard_ice_key.pem -out cert/wildcard_ice_csr.pem -nodes -days 1825 -subj "/CN=*.ice.corp.us/O=corp.us/OU=us/L=London/ST=London/C=us"
 	openssl x509 -req -in cert/wildcard_ice_csr.pem -CA cert/server_cert.pem -CAkey cert/server_key.pem -out cert/wildcard_ice_cert.pem -days 1825 -extfile openssl.cnf
