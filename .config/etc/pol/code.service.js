@@ -1,4 +1,4 @@
-// this is the code service
+// code-server service
 /// <reference path="../../../types.d.ts"/>
 
 service.setup = {

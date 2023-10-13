@@ -1,6 +1,7 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
 export USER="podman"
+export PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/podman/npm/bin:$PATH"
 
 # export WSLINITIALIZER="$USERPROFILE/.config/wsl-initializer" 
 # source $USERPROFILE/.config/wsl-initializer/.configrc
