@@ -1,7 +1,12 @@
 service:
 	podman run --env-file=.env -p 8080:8080 -d --privileged -v sharecontainers:/home/podman/.local/share/containers local-remote-dev-env
 run:
-	podman run --env-file=.env -v /etc/timezone:/etc/timezone -p 9568:9568 -p 8080:8080 -v sharedvol1:/var/lib/shared-containers -it --privileged localhost/local-remote-dev-env:latest
+	podman run --env-file=example/.env -p 9876:7681 -p 8080:8080 \
+		-v /etc/timezone:/etc/timezone \
+		-v sharedvol1:/var/lib/shared-containers \
+		--secret pp,target=pp.store \
+		-it --privileged \
+		localhost/local-remote-dev-env:latest
 wget-service-types:
 	rm -f types.d.ts
 	wget https://raw.githubusercontent.com/ui3o/process-list-manager/main/types.d.ts 

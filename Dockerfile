@@ -9,7 +9,10 @@ EXPOSE 8080
 RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc \
     openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux \
-    fzf make tree unzip podman fuse-overlayfs less
+    fzf make tree unzip podman fuse-overlayfs less zellij
+
+RUN wget https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -O /bin/ttyd && \
+    chmod +x /bin/ttyd
 
 # add sudo privileges to podman
 RUN echo "@includedir /etc/sudoers.d" >> /etc/sudoers
