@@ -1,0 +1,3 @@
+basicConstraints=CA:FALSE
+subjectAltName=DNS:*.ice.corp.us
+extendedKeyUsage=serverAuth
