@@ -74,6 +74,12 @@ declare interface I_SERVICE {
 declare interface I_SS {
 
     /**
+     * **environment:** set environment variable.
+     */
+    env: {
+        [key: string]: string;
+    }
+    /**
      * **send strings to log file:** send the given string parameters to log file.
      */
     toLog: (...msg: string[]) => void;
