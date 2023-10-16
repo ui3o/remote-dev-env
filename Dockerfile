@@ -9,7 +9,7 @@ EXPOSE 8080
 RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc \
     openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux \
-    fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit 
+    fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof
 
 RUN wget https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -O /opt/ttyd && \
     chmod +x /opt/ttyd
@@ -36,10 +36,7 @@ RUN echo start install on $ARCH architecture... && \
 
 # setup file system for podman
 RUN echo [$ARCH] setup file system for podman... && \
-    mkdir -p /home/podman/.config/containers && \
     curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -o /etc/containers/containers.conf && \
-    curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf -o /home/podman/.config/containers/containers.conf && \
-    chmod 644 /etc/containers/containers.conf && \
     mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers && \
     touch /var/lib/shared/overlay-images/images.lock && \
     touch /var/lib/shared/overlay-layers/layers.lock && \
@@ -123,14 +120,9 @@ RUN /home/podman/npm/bin/pol completion zsh
 
 USER root
 
-RUN podman ps
-RUN rm -rf /home/podman/.local/share/containers /var/lib/containers/storage && \
-    mkdir -p /var/lib/containers/storage /var/lib/shared-containers/overlay /var/lib/shared-containers/overlay-images /var/lib/shared-containers/overlay-layers && \
-    ln -sf /var/lib/shared-containers/overlay /var/lib/containers/storage/overlay && \
-    ln -sf /var/lib/shared-containers/overlay-images /var/lib/containers/storage/overlay-images && \
-    ln -sf /var/lib/shared-containers/overlay-layers /var/lib/containers/storage/overlay-layers
+RUN rm -rf /home/podman/.local/share/containers
 RUN /home/podman/npm/bin/pol completion zsh
-VOLUME /var/lib/containers/storage
+VOLUME /var/lib/containers
 
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 ENV PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/podman/npm/bin:$PATH"
