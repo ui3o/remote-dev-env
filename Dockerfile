@@ -9,10 +9,13 @@ EXPOSE 8080
 RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc \
     openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux \
-    fzf make tree unzip podman fuse-overlayfs less zellij
+    fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit 
 
 RUN wget https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -O /opt/ttyd && \
     chmod +x /opt/ttyd
+
+ RUN curl -k https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.13.16/openshift-client-linux.tar.gz --output /tmp/oc.tar.gz && \
+  tar -xf /tmp/oc.tar.gz -C /bin && rm /tmp/oc.tar.gz
 
 # add sudo privileges to podman
 RUN echo "@includedir /etc/sudoers.d" >> /etc/sudoers
@@ -96,6 +99,8 @@ RUN echo [$ARCH] install nix... && \
     sh <(curl -L https://nixos.org/nix/install) --daemon
 RUN echo [$ARCH] install maven... && \
     /root/.nix-profile/bin/nix-env -iA maven -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
+RUN echo [$ARCH] install gradle... && \
+    /root/.nix-profile/bin/nix-env -iA gradle -f https://github.com/NixOS/nixpkgs/archive/9957cd48326fe8dbd52fdc50dd2502307f188b0d.tar.gz
 RUN echo [$ARCH] jdk17 nodejs... && \
     /root/.nix-profile/bin/nix-env -iA jdk17 -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
 RUN echo [$ARCH] install nodejs... && \
@@ -118,13 +123,14 @@ RUN /home/podman/npm/bin/pol completion zsh
 
 USER root
 
-VOLUME /var/lib/shared-containers
-RUN podman system reset | true
-RUN rm -rf /home/podman/.local/share/containers /var/lib/containers/storage/overlay /var/lib/containers/storage/overlay-images /var/lib/containers/storage/overlay-layers && \
+RUN podman ps
+RUN rm -rf /home/podman/.local/share/containers /var/lib/containers/storage && \
+    mkdir -p /var/lib/containers/storage /var/lib/shared-containers/overlay /var/lib/shared-containers/overlay-images /var/lib/shared-containers/overlay-layers && \
     ln -sf /var/lib/shared-containers/overlay /var/lib/containers/storage/overlay && \
     ln -sf /var/lib/shared-containers/overlay-images /var/lib/containers/storage/overlay-images && \
     ln -sf /var/lib/shared-containers/overlay-layers /var/lib/containers/storage/overlay-layers
 RUN /home/podman/npm/bin/pol completion zsh
+VOLUME /var/lib/containers/storage
 
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 ENV PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/podman/npm/bin:$PATH"
