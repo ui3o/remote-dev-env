@@ -1,3 +1,5 @@
 test/
 .config/etc/pol/node_modules/*
 cert/*
+tmp/
+.venv/
