@@ -1,4 +1,4 @@
-FROM docker.io/archlinux:latest
+FROM docker.io/fedora:latest
 
 # ARGS
 ARG ARCH=amd64
@@ -6,8 +6,10 @@ ARG ARCH=amd64
 EXPOSE 8080
 
 # install base packages
-RUN pacman -Syu --noconfirm sudo fakeroot binutils rsync mandoc \
-    openssh ca-certificates gnupg net-tools git-lfs cmatrix cowsay \
+RUN dnf upgrade -y && dnf install -y dnf-plugins-core
+RUN dnf copr enable -y varlad/zellij && dnf copr enable -y totalfreak/lazygit
+RUN dnf install -y binutils rsync mandoc \
+    openssh ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger wget zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof
 
@@ -17,11 +19,6 @@ RUN wget https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -O
  RUN curl -k https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.13.16/openshift-client-linux.tar.gz --output /tmp/oc.tar.gz && \
   tar -xf /tmp/oc.tar.gz -C /bin && rm /tmp/oc.tar.gz
 
-# add sudo privileges to podman
-RUN echo "@includedir /etc/sudoers.d" >> /etc/sudoers
-RUN echo "podman ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers.d/podman
-
-COPY ./.config/user/ /home/podman/
 COPY ./.config/etc/ /etc/
 COPY ./.config/user/.gitconfig /root/.gitconfig
 COPY ./.config/root/ /root/
@@ -36,7 +33,6 @@ RUN echo start install on $ARCH architecture... && \
 
 # setup file system for podman
 RUN echo [$ARCH] setup file system for podman... && \
-    curl -fL https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf -o /etc/containers/containers.conf && \
     mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers && \
     touch /var/lib/shared/overlay-images/images.lock && \
     touch /var/lib/shared/overlay-layers/layers.lock && \
@@ -44,17 +40,16 @@ RUN echo [$ARCH] setup file system for podman... && \
     touch /var/lib/shared/vfs-layers/layers.lock
 
 # for precopied source
-RUN echo [$ARCH] create home folder backup... && \
-    tar -cvzpf /tmp/backup.tar.gz /home/podman && rm -rf /home/podman && \
+RUN echo [$ARCH] create npm folder... && \
     mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
 
-USER podman
 # setup vscode-server
 # version can be checked here https://github.com/coder/code-server/releases
-RUN echo [$ARCH] setup vscode-server... && \
+RUN echo [$ARCH] setup vscode-server ... && \
     curl -fsSL https://code-server.dev/install.sh | sh -s;
 RUN echo [$ARCH] install oh-my-zsh... && \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
+    
     git clone https://github.com/Aloxaf/fzf-tab /home/podman/.oh-my-zsh/custom/plugins/fzf-tab && \
     git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k && \
     /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
@@ -89,10 +84,8 @@ RUN rm -rf /home/podman/.cache/code-server;\
     } \n\
     \n\</style></head>|g" "$CODE_WORKBENCH"
 
-RUN echo [$ARCH] restore home folder backup... && \
-    tar -xvzpf /tmp/backup.tar.gz -C / && chown podman:podman -R /home/podman
-
 RUN echo [$ARCH] install nix... && \
+    mkdir -p /etc/nix && echo 'filter-syscalls = false' > /etc/nix/nix.conf && \
     sh <(curl -L https://nixos.org/nix/install) --daemon
 RUN echo [$ARCH] install maven... && \
     /root/.nix-profile/bin/nix-env -iA maven -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
@@ -104,37 +97,27 @@ RUN echo [$ARCH] install nodejs... && \
     /root/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
 RUN /root/.nix-profile/bin/npm config set prefix "/home/podman/npm" && \
     echo [$ARCH] install jji... && \
-    /root/.nix-profile/bin/npm i -g jji && \
-    echo [$ARCH] install pol... && \
-    /root/.nix-profile/bin/npm i -g process-list-manager && \
-    echo [$ARCH] install pol npm packages... && \
-    /root/.nix-profile/bin/npm --prefix /etc/pol install
-# process-list-manager log setup
-RUN mkdir /var/log/pol && chmod o+rwx /var/log/pol
+    /root/.nix-profile/bin/npm i -g jji
 
-USER podman
+# ENV PATH="/nix/var/nix/profiles/default/bin:$PATH"
+# ENV ZSH=/home/podman/.oh-my-zsh
 
-ENV PATH="/nix/var/nix/profiles/default/bin:$PATH"
-ENV ZSH=/home/podman/.oh-my-zsh
-RUN /home/podman/npm/bin/pol completion zsh
-
-USER root
+COPY ./.config/user/ /home/podman/
 
 RUN rm -rf /home/podman/.local/share/containers
-RUN /home/podman/npm/bin/pol completion zsh
 VOLUME /var/lib/containers
 
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 ENV PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/podman/npm/bin:$PATH"
 
 RUN ssh-keygen -A
-RUN sudo chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
+RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 RUN chown -R podman:podman /home/podman && \
     mkdir -p /home/podman/.local/share/containers
 
 STOPSIGNAL SIGRTMIN+3
+
 WORKDIR /home/podman
-
-USER podman
-
-ENTRYPOINT ["sudo", "-E", "/etc/pol/container-entrypoint.sh"]
+ENV PYTHONPATH=/opt/python3/lib/
+COPY .config/opt /opt
+ENTRYPOINT [ "python3", "/opt/python3/bin/inits.py" ]
