@@ -2,8 +2,7 @@ FROM docker.io/fedora:latest
 
 # ARGS
 ARG TARGETPLATFORM
-ARG ARCH=$TARGETPLATFORM
-
+RUN echo "export ARCH=$(echo $TARGETPLATFORM | { IFS=/ read _ ARCH _; echo $ARCH; })" >> /arch
 EXPOSE 8080
 
 # install base packages
@@ -25,7 +24,7 @@ COPY ./.config/user/.gitconfig /root/.gitconfig
 COPY ./.config/root/ /root/
 
 # setup podman user
-RUN echo start install on $ARCH architecture... && \
+RUN . /arch;echo start install on $ARCH architecture... && \
     echo [$ARCH] setup podman user... && \
     useradd podman && \
     echo podman:10000:5000 >/etc/subuid && \
@@ -33,7 +32,7 @@ RUN echo start install on $ARCH architecture... && \
     usermod --shell /usr/bin/zsh podman
 
 # setup file system for podman
-RUN echo [$ARCH] setup file system for podman... && \
+RUN . /arch;echo [$ARCH] setup file system for podman... && \
     mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers && \
     touch /var/lib/shared/overlay-images/images.lock && \
     touch /var/lib/shared/overlay-layers/layers.lock && \
@@ -41,21 +40,20 @@ RUN echo [$ARCH] setup file system for podman... && \
     touch /var/lib/shared/vfs-layers/layers.lock
 
 # for precopied source
-RUN echo [$ARCH] create npm folder... && \
+RUN . /arch;echo [$ARCH] create npm folder... && \
     mkdir -p /home/podman/npm && chown podman:podman -R /home/podman
 
 # setup vscode-server
 # version can be checked here https://github.com/coder/code-server/releases
-RUN echo [$ARCH] setup vscode-server ... && \
+RUN . /arch;echo [$ARCH] setup vscode-server ... && \
     curl -fsSL https://code-server.dev/install.sh | sh -s;
-RUN echo [$ARCH] install oh-my-zsh... && \
+RUN . /arch; echo [$ARCH] install oh-my-zsh... && \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
-    
     git clone https://github.com/Aloxaf/fzf-tab /home/podman/.oh-my-zsh/custom/plugins/fzf-tab && \
     git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k && \
     /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
 # setup vscode-server extensions
-RUN echo [$ARCH] install code-server extensions... && \
+RUN . /arch;echo [$ARCH] install code-server extensions... && \
     code-server --install-extension carlos-algms.make-task-provider && \
     code-server --install-extension ms-vscode.makefile-tools && \
     code-server --install-extension redhat.java && \
@@ -85,18 +83,18 @@ RUN rm -rf /home/podman/.cache/code-server;\
     } \n\
     \n\</style></head>|g" "$CODE_WORKBENCH"
 
-RUN echo [$ARCH] install nix... && \
+RUN . /arch;echo [$ARCH] install nix... && \
     mkdir -p /etc/nix && echo 'filter-syscalls = false' > /etc/nix/nix.conf && \
     sh <(curl -L https://nixos.org/nix/install) --daemon
-RUN echo [$ARCH] install maven... && \
+RUN . /arch;echo [$ARCH] install maven... && \
     /root/.nix-profile/bin/nix-env -iA maven -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
-RUN echo [$ARCH] install gradle... && \
+RUN . /arch;echo [$ARCH] install gradle... && \
     /root/.nix-profile/bin/nix-env -iA gradle -f https://github.com/NixOS/nixpkgs/archive/9957cd48326fe8dbd52fdc50dd2502307f188b0d.tar.gz
-RUN echo [$ARCH] jdk17 nodejs... && \
+RUN . /arch;echo [$ARCH] jdk17 nodejs... && \
     /root/.nix-profile/bin/nix-env -iA jdk17 -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
-RUN echo [$ARCH] install nodejs... && \
+RUN . /arch;echo [$ARCH] install nodejs... && \
     /root/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
-RUN /root/.nix-profile/bin/npm config set prefix "/home/podman/npm" && \
+RUN . /arch;/root/.nix-profile/bin/npm config set prefix "/home/podman/npm" && \
     echo [$ARCH] install jji... && \
     /root/.nix-profile/bin/npm i -g jji
 
