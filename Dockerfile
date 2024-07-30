@@ -83,7 +83,7 @@ RUN rm -rf /home/podman/.cache/code-server;\
     } \n\
     \n\</style></head>|g" "$CODE_WORKBENCH"
 
-ENV NIX_CONFIG='filter-syscalls = false\nexperimental-features = nix-command flakes'
+ENV NIX_CONFIG="filter-syscalls = false\nexperimental-features = nix-command flakes"
 RUN . /arch;echo [$ARCH] install nix... && \
     sh <(curl -L https://nixos.org/nix/install) --daemon
 RUN . /arch;echo [$ARCH] install maven... && \
