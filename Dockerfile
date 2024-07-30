@@ -84,7 +84,7 @@ RUN rm -rf /home/podman/.cache/code-server;\
     \n\</style></head>|g" "$CODE_WORKBENCH"
 
 RUN . /arch;echo [$ARCH] install nix... && \
-    curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --daemon --no-confirm --init none --extra-conf "filter-syscalls = false" && \
+    curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --no-confirm --init none --extra-conf "filter-syscalls = false"
 RUN . /arch;echo [$ARCH] install maven... && \
     /root/.nix-profile/bin/nix-env -iA maven -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
 RUN . /arch;echo [$ARCH] install gradle... && \
