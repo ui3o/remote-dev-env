@@ -89,8 +89,6 @@ RUN . /arch;echo [$ARCH] install maven... && \
     /root/.nix-profile/bin/nix-env -iA maven -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
 RUN . /arch;echo [$ARCH] install gradle... && \
     /root/.nix-profile/bin/nix-env -iA gradle -f https://github.com/NixOS/nixpkgs/archive/9957cd48326fe8dbd52fdc50dd2502307f188b0d.tar.gz
-RUN . /arch;echo [$ARCH] jdk17 nodejs... && \
-    /root/.nix-profile/bin/nix-env -iA jdk17 -f https://github.com/NixOS/nixpkgs/archive/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8.tar.gz
 RUN . /arch;echo [$ARCH] install nodejs... && \
     /root/.nix-profile/bin/nix-env -iA nodejs-16_x -f https://github.com/NixOS/nixpkgs/archive/5e15d5da4abb74f0dd76967044735c70e94c5af1.tar.gz
 RUN . /arch;/root/.nix-profile/bin/npm config set prefix "/home/podman/npm" && \
