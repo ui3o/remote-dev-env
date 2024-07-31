@@ -62,7 +62,7 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
     code-server --install-extension vscjava.vscode-java-pack && \
     code-server --install-extension vscjava.vscode-java-test && \
     code-server --install-extension vscjava.vscode-maven && \
-    code-server --install-extension wmanth.jar-viewer && \
+    # code-server --install-extension wmanth.jar-viewer && \
     code-server --install-extension KylinIDETeam.gitlens && \
     echo [$ARCH] finish extension install.sh..
 
