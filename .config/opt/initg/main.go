@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	reaper "github.com/ramr/go-reaper"
 )
 
 func main() {
-
+	go reaper.Reap()
 	fmt.Println("tail:", flag.Args())
 	flag.Parse()
 
