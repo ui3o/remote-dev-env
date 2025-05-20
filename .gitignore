@@ -3,3 +3,4 @@ test/
 cert/*
 tmp/
 .venv/
+.env
