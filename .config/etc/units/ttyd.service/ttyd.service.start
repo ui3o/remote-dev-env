@@ -1,0 +1,3 @@
+#!/bin/bash
+
+/opt/ttyd -W -I /etc/ttyd/inline.html zsh

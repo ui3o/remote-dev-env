@@ -744,7 +744,6 @@ func init() {
 }
 
 func main() {
-	fmt.Println("hi")
 	for {
 		for k, v := range findRunnables() {
 			if _, ok := runningAddons[k]; !ok {
@@ -784,7 +783,7 @@ func main() {
 					}
 					runPath = filepath.Dir(runPath)
 					unitname := filepath.Base(runPath)
-					killFilePath := filepath.Join(runPath, fmt.Sprintf("%s%s", unitname, "_kill"))
+					killFilePath := filepath.Join(runPath, fmt.Sprintf("%s%s", unitname, ".kill"))
 					if _, err := os.Stat(killFilePath); err != nil {
 						continue
 					}

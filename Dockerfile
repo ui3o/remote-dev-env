@@ -42,7 +42,6 @@ RUN . /arch;echo [$ARCH] setup vscode-server ... && \
     curl -fsSL https://code-server.dev/install.sh | sh -s;
 RUN . /arch; echo [$ARCH] install oh-my-zsh... && \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
-    cp -r /root/.oh-my-zsh /home/podman/.oh-my-zsh && \
     git clone https://github.com/Aloxaf/fzf-tab /home/podman/.oh-my-zsh/custom/plugins/fzf-tab && \
     git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k && \
     /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
@@ -71,9 +70,7 @@ COPY ./.config/user/ /home/podman/
 
 RUN rm -rf /home/podman/.local/share/containers
 VOLUME /var/lib/containers
-
 ENV _CONTAINERS_USERNS_CONFIGURED=""
-ENV PATH="/home/podman/.local/bin:/root/.nix-profile/bin/:/home/podman/npm/bin:$PATH"
 
 RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 RUN chown -R podman:podman /home/podman && \
