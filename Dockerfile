@@ -20,10 +20,6 @@ RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch
 RUN curl -k https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.13.16/openshift-client-linux.tar.gz --output /tmp/oc.tar.gz && \
   tar -xf /tmp/oc.tar.gz -C /bin && rm /tmp/oc.tar.gz
 
-COPY ./.config/etc/ /etc/
-COPY ./.config/user/.gitconfig /root/.gitconfig
-COPY ./.config/root/ /root/
-
 # setup podman user
 RUN . /arch;echo start install on $ARCH architecture... && \
     echo [$ARCH] setup podman user... && \
@@ -106,13 +102,21 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
     echo [$ARCH] finish extension install.sh..
 
 USER root
-COPY .config/opt /opt
-RUN chmod -R  ugo+rw /opt/igo/plugins
-WORKDIR /opt/igo
-RUN GOOS=linux go build -o igo main.go
+ENV PATH="/root/go/bin:$PATH"
 
-USER podman
-WORKDIR /home/podman
+RUN usermod --shell /usr/bin/zsh root
+RUN cp -r /home/podman/. /root/
+COPY ./.config/etc/ /etc/
+COPY .config/usr /usr
 
+RUN	groupadd -f igo && groupadd -f igodev && groupadd -f igorun
+RUN ln -s /etc/units /usr/share/igo/.runtime/units/root/units
+RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
+    chmod g+rws /usr/share/igo/addons && chgrp -R igodev /usr/share/igo/addons && \
+    chmod g+rws /usr/share/igo/igo && chgrp -R igodev /usr/share/igo/igo && \
+    chmod g+rws /usr/share/igo/ictl && chgrp -R igodev /usr/share/igo/ictl && \
+    chgrp -R igorun /usr/share/igo/.runtime
+WORKDIR /usr/share/igo
+RUN GOOS=linux go build -o igo .
 
-ENTRYPOINT [ "/opt/igo/igo" ]
+ENTRYPOINT [ "/usr/share/igo/igo" ]

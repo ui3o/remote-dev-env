@@ -44,10 +44,6 @@ func getAddonPath(addonName string) string {
 	return filepath.Join(addonDir, dir, addonName)
 }
 
-func getDummyOriginExecutablePath() string {
-	return filepath.Join("dummy", dummyOriginName)
-}
-
 func getDummyOriginConfigPath() string {
 	return filepath.Join("dummy", addonConfigName)
 }
