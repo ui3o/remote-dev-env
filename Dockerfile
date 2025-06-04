@@ -113,7 +113,11 @@ RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
     chmod g+rws /usr/share/igo/igo && chgrp -R igodev /usr/share/igo/igo && \
     chmod g+rws /usr/share/igo/ictl && chgrp -R igodev /usr/share/igo/ictl && \
     chgrp -R igorun /usr/share/igo/.runtime
-WORKDIR /usr/share/igo
+WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
+WORKDIR /usr/share/igo/addons/reverseproxy
+RUN GOOS=linux go build -o reverseproxy.start .
+WORKDIR /usr/share/igo
 
-ENTRYPOINT [ "/usr/share/igo/igo" ]
+
+ENTRYPOINT [ "/usr/share/igo/igo/igo" ]
