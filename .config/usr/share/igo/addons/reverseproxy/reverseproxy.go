@@ -7,15 +7,18 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"os/exec"
+	"regexp"
 
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/ui3o/remote-dev-env/igo-reverseproxy/saml"
+	"github.com/ui3o/remote-dev-env/igo-reverseproxy/simple"
 )
 
 type key int
@@ -26,24 +29,27 @@ const (
 )
 
 var (
-	SAMLSP *samlsp.Middleware
-	// AllRestEndpoint = make(map[string]*RestEndpointDefinition)
-	AllRestEndpoint = []*RestEndpointDefinition{}
+	SAMLSP          *samlsp.Middleware
+	AllRestEndpoint = make(map[string]*RestEndpointDefinition)
+	AllRoutesRegexp = []*RouteMatch{}
 	Config          = RuntimeConfig{
-		UseSAMLAuth: false,
-		SAML:        &saml.SAMLConf,
+		SAML: &saml.SAMLConf,
 	}
 )
 
 type RuntimeConfig struct {
+	CookieName             string
 	Port                   int
+	CertFile               string
+	KeyFile                string
 	SimpleAuthTemplatePath string
 	UseSAMLAuth            bool
 	SAML                   *saml.SAMLConfig
 }
 
-type DemoRequest struct {
-	Cookie string `json:"cookie"`
+type RouteMatch struct {
+	Regex *regexp.Regexp
+	Id    string
 }
 
 type remote struct {
@@ -52,8 +58,8 @@ type remote struct {
 }
 
 type RestEndpointDefinition struct {
+	Id         string
 	Proxies    []string
-	Regex      *regexp.Regexp
 	Remotes    map[string]remote
 	PreHandler func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request)
 }
@@ -77,7 +83,7 @@ func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.Respon
 			r.Header.Set("X-Forwarded-For", r.RemoteAddr)
 
 			if !pHandlerCall {
-				log.Println("PreHandler for ", p.Regex.String())
+				log.Println("PreHandler for ", p.Id)
 				p.PreHandler(p, w, r)
 			}
 
@@ -96,7 +102,6 @@ func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.Respon
 				upgrader := websocket.Upgrader{
 					CheckOrigin: func(r *http.Request) bool { return true },
 				}
-
 				targetURL := "ws://" + p.Remotes[k].remote.Host + r.WithContext(ctx).RequestURI
 				backendConn, _, err := websocket.DefaultDialer.Dial(targetURL, reqHeader)
 				if err != nil {
@@ -183,25 +188,40 @@ func (p *RestEndpointDefinition) ServeProxy(c *gin.Context) {
 	p.serveNextProxy(true, c.Writer, c.Request.WithContext(ctx))
 }
 
-func Register(endpoint *RestEndpointDefinition) *RestEndpointDefinition {
-	AllRestEndpoint = append(AllRestEndpoint, endpoint)
-	endpoint.Register()
-	return endpoint
-}
-
-func FindRoute(host string, cookie *http.Cookie, c *gin.Context) bool {
-	found := false
-	for _, ep := range AllRestEndpoint {
-		if ep.Regex != nil {
-			found = ep.Regex.MatchString(host)
-			if found {
-				log.Println("Handle logged in user", cookie)
-				ep.ServeProxy(c)
-				break
-			}
+func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *RestEndpointDefinition) {
+	// TODO remove orphans
+	loginDir := fmt.Sprintf("/tmp/.logins/%s", userName)
+	if _, err := os.Stat(loginDir); os.IsNotExist(err) {
+		debug := os.Getenv("GOLANG_DEBUG")
+		var cmd *exec.Cmd
+		if debug == "" {
+			cmd = exec.Command("/etc/units/user.login.sh", userName)
+		} else {
+			cmd = exec.Command("podman", "exec", "-it", "rdev", "/etc/units/user.login.sh", userName)
+		}
+		if out, err := cmd.Output(); err != nil {
+			log.Println(err)
+			return
+		} else {
+			log.Println(string(out))
 		}
 	}
-	return found
+
+	id := fmt.Sprintf("%s_%s", userName, routeId)
+	if AllRestEndpoint[id] != nil {
+		log.Println("handle logged in user", id)
+		AllRestEndpoint[id].ServeProxy(c)
+		return
+	}
+	content, err := os.ReadFile(fmt.Sprintf("%s/%s.port", loginDir, routeId))
+	if err == nil {
+		AllRestEndpoint[id] = endpoint
+		endpoint.Id = id
+		endpoint.Proxies = []string{fmt.Sprintf("http://localhost:%s", string(content))}
+		endpoint.Register()
+		log.Println("register and handle logged in user", id)
+		endpoint.ServeProxy(c)
+	}
 }
 
 func init() {
@@ -209,6 +229,10 @@ func init() {
 
 	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
 	flag.StringVar(&Config.SimpleAuthTemplatePath, "simple_auth_template_path", "simple/index.html", "")
+	flag.StringVar(&Config.SAML.CookieName, "cookie_name", "remove-dev-env", "")
+
+	flag.StringVar(&Config.KeyFile, "server_key", "", "")
+	flag.StringVar(&Config.CertFile, "server_cert", "", "")
 
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")
 	flag.StringVar(&Config.SAML.EntityID, "saml_entityid", "", "")
@@ -229,64 +253,58 @@ func init() {
 }
 
 func main() {
-	demo := Register(&RestEndpointDefinition{
-		Proxies: []string{"http://localhost:9001", "http://localhost:9001"},
-		PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
-			log.Println("PreHandler for demo")
-			w.Header().Add("foo", "bar")
-		}})
+	AllRoutesRegexp = append(AllRoutesRegexp, &RouteMatch{Regex: regexp.MustCompile(`^code.`), Id: "CODE"})
+	AllRoutesRegexp = append(AllRoutesRegexp, &RouteMatch{Regex: regexp.MustCompile(`^rsh.`), Id: "RSH"})
 
-	Register(&RestEndpointDefinition{
-		Regex:   regexp.MustCompile(`^code.`),
-		Proxies: []string{"http://localhost:8080"},
-		PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
-			w.Header().Add("foo", "bar")
-		}})
-	Register(&RestEndpointDefinition{
-		Regex:   regexp.MustCompile(`^rsh.`),
-		Proxies: []string{"http://localhost:7681"},
-		PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
-			w.Header().Add("foo", "bar")
-		}})
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
-		// TODO auto handle path
-		cookie, err := c.Request.Cookie("remove-dev-env")
+		cookie, err := c.Request.Cookie(Config.SAML.CookieName)
 		host := c.Request.Host
 		log.Println("Handle host", host)
 		if err != nil {
 			log.Println("Handle anonymous user")
 			if Config.UseSAMLAuth {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
+					log.Println("SAMLSP handel /saml/")
 					SAMLSP.ServeHTTP(c.Writer, c.Request)
-					// todo create user
 				} else {
-					SAMLSP.RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-						user := saml.UserFromRequest(r)
-						fmt.Fprintf(w, "Hello, domain:%s, user:%s, email: %s!, Url:%s", user.Domain, user.Name, user.Email, r.URL)
-					}))
+					_, err := SAMLSP.Session.GetSession(c.Request)
+					log.Println("SAMLSP err >", err)
+					if err == samlsp.ErrNoSession {
+						log.Println("SAMLSP HandleStartAuthFlow")
+						SAMLSP.HandleStartAuthFlow(c.Writer, c.Request)
+					}
 				}
 			} else {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
-					var req DemoRequest
+					var req simple.JWTUser
 					if err := c.ShouldBindJSON(&req); err != nil {
 						c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 						return
 					}
-					c.SetCookie(
-						"remove-dev-env", // name
-						req.Cookie,       // value
-						3600,             // maxAge (seconds)
-						"/",              // path
-						".localhost.com", // domain
-						false,            // secure
-						true,             // httpOnly
-					)
-					c.JSON(200,
-						gin.H{
-							"status": "success",
-						})
+					cookie, err := simple.Encode(req)
+					if err == nil {
+						c.SetCookie(
+							Config.SAML.CookieName, // name
+							cookie,                 // value
+							3600,                   // maxAge (seconds)
+							"/",                    // path
+							".localhost.com",       // domain
+							false,                  // secure
+							true,                   // httpOnly
+						)
+						c.JSON(200,
+							gin.H{
+								"status": "success",
+							})
+
+					} else {
+						c.JSON(500,
+							gin.H{
+								"status": "failed",
+							})
+					}
 				} else {
 					c.HTML(200, "index.html", gin.H{
 						"title": "Welcome to Gin",
@@ -294,12 +312,33 @@ func main() {
 				}
 			}
 		} else {
-			if !FindRoute(host, cookie, c) {
-				log.Println("Handle logged in user", cookie)
-				demo.ServeProxy(c)
-
+			user, err := simple.Decode(cookie.Value)
+			if err == nil {
+				found := false
+				for _, route := range AllRoutesRegexp {
+					found = route.Regex.MatchString(host)
+					if found {
+						HandleRequest(user.Name, route.Id, c, &RestEndpointDefinition{
+							PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
+								w.Header().Add("foo", "bar")
+							}})
+						break
+					}
+				}
+				if !found {
+					log.Println("Handle logged in user", cookie)
+					return
+				}
 			}
 		}
 	})
-	r.Run(fmt.Sprintf(":%d", Config.Port))
+
+	if len(Config.CertFile) > 0 && len(Config.KeyFile) > 0 {
+		if err := r.RunTLS(fmt.Sprintf(":%d", Config.Port), Config.CertFile, Config.KeyFile); err != nil {
+			log.Fatal("Failed to run HTTPS server: ", err)
+		}
+	} else {
+		r.Run(fmt.Sprintf(":%d", Config.Port))
+	}
+
 }

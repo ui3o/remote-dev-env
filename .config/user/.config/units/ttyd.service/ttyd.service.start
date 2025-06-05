@@ -1,7 +1,7 @@
 #!/bin/bash
 
 USER=$(whoami)
-source /tmp/.logins/*.$USER
+source /tmp/.logins/$USER/.env
 
 cd /home/$USER
-/opt/ttyd -W -p $RSH -I /etc/ttyd/inline.html zsh
+/opt/ttyd -W -p $PORT_RSH -I /etc/ttyd/inline.html zsh

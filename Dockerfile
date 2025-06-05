@@ -20,14 +20,6 @@ RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch
 RUN curl -k https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.13.16/openshift-client-linux.tar.gz --output /tmp/oc.tar.gz && \
   tar -xf /tmp/oc.tar.gz -C /bin && rm /tmp/oc.tar.gz
 
-# setup podman user
-RUN . /arch;echo start install on $ARCH architecture... && \
-    echo [$ARCH] setup podman user... && \
-    useradd podman && \
-    echo podman:10000:5000 >/etc/subuid && \
-    echo podman:10000:5000 >/etc/subgid && \
-    usermod --shell /usr/bin/zsh podman
-
 # setup file system for podman
 RUN . /arch;echo [$ARCH] setup file system for podman... && \
     mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers /var/lib/shared/vfs-images /var/lib/shared/vfs-layers && \
@@ -42,15 +34,13 @@ RUN . /arch;echo [$ARCH] setup vscode-server ... && \
     curl -fsSL https://code-server.dev/install.sh | sh -s;
 RUN . /arch; echo [$ARCH] install oh-my-zsh... && \
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
-    git clone https://github.com/Aloxaf/fzf-tab /home/podman/.oh-my-zsh/custom/plugins/fzf-tab && \
-    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /home/podman/.oh-my-zsh/custom/themes/powerlevel10k && \
-    /home/podman/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
+    git clone https://github.com/Aloxaf/fzf-tab /root/.oh-my-zsh/custom/plugins/fzf-tab && \
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/.oh-my-zsh/custom/themes/powerlevel10k && \
+    /root/.oh-my-zsh/custom/themes/powerlevel10k/gitstatus/install
 RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch) -o /opt/ttyd && \
     chmod +x /opt/ttyd
 
-USER root
-RUN rm -rf /home/podman/.cache/code-server;\
-    cd /usr/lib/code-server/src/browser/pages && \
+RUN cd /usr/lib/code-server/src/browser/pages && \
     curl -O "https://demyx.sh/fonts/{meslolgs-nf-regular.woff,meslolgs-nf-bold.woff,meslolgs-nf-italic.woff,meslolgs-nf-bold-italic.woff}" && \
     CODE_WORKBENCH="$(find /usr/lib/code-server -name "*workbench.html")" && \
     sed -i "s|</head>|\
@@ -68,7 +58,6 @@ RUN rm -rf /home/podman/.cache/code-server;\
 
 STOPSIGNAL SIGRTMIN+3
 
-USER podman
 # setup vscode-server extensions
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -88,22 +77,19 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
 #     code-server --install-extension KylinIDETeam.gitlens && \
     echo [$ARCH] finish extension install.sh..
 
-USER root
-
-COPY ./.config/user/ /home/podman/
-RUN rm -rf /home/podman/.local/share/containers
+COPY ./.config/user/ /root/
 VOLUME /var/lib/containers
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 
 RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
-RUN chown -R podman:podman /home/podman && \
-    mkdir -p /home/podman/.local/share/containers
-
+# RUN chown -R podman:podman /home/podman && \
+#     mkdir -p /home/podman/.local/share/containers
 
 ENV PATH="/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
-RUN cp -r /home/podman/. /root/
+RUN cp -a /root/. /home/__example__/
+
 COPY ./.config/etc/ /etc/
 COPY .config/usr /usr
 
@@ -114,6 +100,7 @@ RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
     chmod g+rws /usr/share/igo/igo && chgrp -R igodev /usr/share/igo/igo && \
     chmod g+rws /usr/share/igo/ictl && chgrp -R igodev /usr/share/igo/ictl && \
     chgrp -R igorun /usr/share/igo/.runtime
+
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy

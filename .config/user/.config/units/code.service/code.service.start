@@ -1,7 +1,7 @@
 #!/bin/bash
 
 USER=$(whoami)
-source /tmp/.logins/*.$USER
+source /tmp/.logins/$USER/.env
 
 cd /home/$USER
-/usr/bin/code-server --port $CODE
+/usr/bin/code-server --port $PORT_CODE

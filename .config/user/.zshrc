@@ -1,10 +1,10 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
-export USER="foo"
+export USER="___USER___"
+if [[ "$USER" == "___USER___" ]]; then
+  export USER=root
+fi
 export PATH="/home/$USER/.local/bin:/home/$USER/npm/bin:$PATH"
-
-# export WSLINITIALIZER="$USERPROFILE/.config/wsl-initializer" 
-# source $USERPROFILE/.config/wsl-initializer/.configrc
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]

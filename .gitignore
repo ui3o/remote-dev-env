@@ -1,6 +1,7 @@
 test/
 .config/etc/pol/node_modules/*
-cert/*
+cert
 tmp/
 .venv/
+.vscode/
 .env

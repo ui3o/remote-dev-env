@@ -18,7 +18,11 @@
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ cookie: name }),
+          body: JSON.stringify({
+            domain: "any.example.com",
+            name,
+            email: `${name}@localhost.com`,
+          }),
         });
         const content = await rawResponse.json();
         window.location.href = "/";

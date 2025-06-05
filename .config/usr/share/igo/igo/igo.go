@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -33,7 +34,12 @@ var (
 	runningAddons               = make(map[string]*AddonType)
 	igoGrpId      int
 	activeKillers sync.Map
+	Config        IgoConfig
 )
+
+type IgoConfig struct {
+	Debug bool
+}
 
 type RunnableConfig struct {
 	Timer int           `json:"timer"`
@@ -69,6 +75,12 @@ type AddonType struct {
 	Origin     AddonBase
 	User       *user.User
 	Name       string
+}
+
+func DebugPrintln(a ...any) {
+	if Config.Debug {
+		fmt.Println(a)
+	}
 }
 
 type Addons map[string]*AddonType
@@ -126,12 +138,14 @@ func findRunnables() Addons {
 	var addons Addons = make(map[string]*AddonType)
 	cmd := exec.Command("find", unitDir, "-follow", "-type", "f", "-executable", "-name", "*.start")
 	output, err := cmd.Output()
+	DebugPrintln("find output > ", string(output))
 	if err != nil {
 		fmt.Println("[IGO] ERROR findRunnables() could not give find command err:", err)
 		return Addons{}
 	}
 
 	executables := strings.Split(strings.TrimSpace(string(output)), "\n")
+	DebugPrintln("executables > ", executables)
 
 	if len(executables) == 0 {
 		fmt.Println("[IGO] findRunnables() no addon or unit found! unitDir: ", unitDir)
@@ -141,10 +155,12 @@ func findRunnables() Addons {
 		dirName := filepath.Base(filepath.Dir(execPath))
 		execName := filepath.Base(execPath)
 
+		DebugPrintln("detect execName > ", execName)
+		DebugPrintln("dirName > ", dirName)
 		if dirName+".start" != execName {
 			continue
 		}
-
+		DebugPrintln("detect execName matched!")
 		addon := AddonType{}
 		addon.Name = dirName
 		addonTimestampInfo, _ := os.Stat(execPath)
@@ -163,6 +179,7 @@ func findRunnables() Addons {
 		}
 		addon.IsAddon = strings.Contains(execPath, "addons")
 		if addon.IsAddon {
+			DebugPrintln("exec type is addon")
 			originExecPath := strings.ReplaceAll(execPath, "units/addons", "origins")
 			if _, err := os.Stat(originExecPath); err == nil {
 				addonTimestampInfo, _ := os.Stat(originExecPath)
@@ -180,6 +197,7 @@ func findRunnables() Addons {
 				}
 			}
 		} else {
+			DebugPrintln("exec type is unit")
 			username := extractUserFromStartPath(addon.Current.StartPath)
 			linuxUser, err := user.Lookup(username)
 			if err == nil {
@@ -734,6 +752,9 @@ func setIgoGrpId() {
 }
 
 func init() {
+	flag.BoolVar(&Config.Debug, "v", false, "verbose")
+	flag.Parse()
+	DebugPrintln("debug mode enabled!\n")
 	fmt.Println("[IGO] Starting ...")
 	zombieInit()
 	emptyOrigin()
@@ -745,6 +766,7 @@ func init() {
 
 func main() {
 	for {
+		DebugPrintln("find runnable cycle run..")
 		for k, v := range findRunnables() {
 			if _, ok := runningAddons[k]; !ok {
 				fmt.Printf("[IGO] %s new addon is detected here: %v\n", INFO, k)
