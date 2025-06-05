@@ -334,10 +334,12 @@ func main() {
 	})
 
 	if len(Config.CertFile) > 0 && len(Config.KeyFile) > 0 {
+		log.Println("Gin start in https mode")
 		if err := r.RunTLS(fmt.Sprintf(":%d", Config.Port), Config.CertFile, Config.KeyFile); err != nil {
 			log.Fatal("Failed to run HTTPS server: ", err)
 		}
 	} else {
+		log.Println("Gin start in http mode")
 		r.Run(fmt.Sprintf(":%d", Config.Port))
 	}
 
