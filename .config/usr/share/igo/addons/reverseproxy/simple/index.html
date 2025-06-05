@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ .title }}</title>
+  </head>
+  <body>
+    <h1>{{ .title }}</h1>
+    <p>This is a simple HTML page served with Gin.</p>
+    <div>
+      <button onclick="login('foo')">Login as foo</button>
+      <button onclick="login('bar')">Login as bar</button>
+    </div>
+    <script>
+      async function login(name) {
+        const rawResponse = await fetch("/saml/demo", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ cookie: name }),
+        });
+        const content = await rawResponse.json();
+        window.location.href = "/";
+        console.log(content);
+      }
+    </script>
+  </body>
+</html>

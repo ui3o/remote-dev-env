@@ -1,0 +1,7 @@
+#!/bin/bash
+
+USER=$(whoami)
+source /tmp/.logins/*.$USER
+
+cd /home/$USER
+/opt/ttyd -W -p $RSH -I /etc/ttyd/inline.html zsh

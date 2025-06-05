@@ -5,7 +5,9 @@ run:
 		-v sharedvol1:/var/lib/shared-containers \
 		-it --privileged \
 		localhost/local-remote-dev-env:latest
-build-amd64: wget-service-types
+test-user-create:
+	podman run -it --rm --privileged -v ./.config/etc/units:/etc/units -v ./.config/user:/home/podman fedorawithzsh
+build-amd64:
 	podman build --platform=linux/amd64 --build-arg=ARCH=amd64 --tag local-remote-dev-env .
 build-arm64:
 	podman build --platform=linux/arm64 --build-arg=ARCH=arm64 --tag local-remote-dev-env .

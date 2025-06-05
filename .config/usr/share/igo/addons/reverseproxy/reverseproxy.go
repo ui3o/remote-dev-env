@@ -26,7 +26,8 @@ const (
 )
 
 var (
-	SAMLSP          *samlsp.Middleware
+	SAMLSP *samlsp.Middleware
+	// AllRestEndpoint = make(map[string]*RestEndpointDefinition)
 	AllRestEndpoint = []*RestEndpointDefinition{}
 	Config          = RuntimeConfig{
 		UseSAMLAuth: false,
@@ -35,8 +36,14 @@ var (
 )
 
 type RuntimeConfig struct {
-	UseSAMLAuth bool
-	SAML        *saml.SAMLConfig
+	Port                   int
+	SimpleAuthTemplatePath string
+	UseSAMLAuth            bool
+	SAML                   *saml.SAMLConfig
+}
+
+type DemoRequest struct {
+	Cookie string `json:"cookie"`
 }
 
 type remote struct {
@@ -200,6 +207,9 @@ func FindRoute(host string, cookie *http.Cookie, c *gin.Context) bool {
 func init() {
 	flag.BoolVar(&Config.UseSAMLAuth, "saml", false, "Use saml auth(default is dummy) ")
 
+	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
+	flag.StringVar(&Config.SimpleAuthTemplatePath, "simple_auth_template_path", "simple/index.html", "")
+
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")
 	flag.StringVar(&Config.SAML.EntityID, "saml_entityid", "", "")
 	flag.StringVar(&Config.SAML.CookieName, "saml_cookiename", "", "")
@@ -211,17 +221,14 @@ func init() {
 
 	flag.Parse()
 
+	log.Println("SimpleAuthTemplatePath", Config.SimpleAuthTemplatePath)
+
 	if Config.UseSAMLAuth {
 		saml.InitSAML()
 	}
 }
 
 func main() {
-	auth := Register(&RestEndpointDefinition{
-		Proxies: []string{"http://localhost:9000"},
-		PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
-			log.Println("PreHandler for auth")
-		}})
 	demo := Register(&RestEndpointDefinition{
 		Proxies: []string{"http://localhost:9001", "http://localhost:9001"},
 		PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
@@ -242,22 +249,50 @@ func main() {
 			w.Header().Add("foo", "bar")
 		}})
 	r := gin.Default()
-
+	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
 		// TODO auto handle path
 		cookie, err := c.Request.Cookie("remove-dev-env")
 		host := c.Request.Host
 		log.Println("Handle host", host)
 		if err != nil {
-			if Config.UseSAMLAuth {
-				http.Handle("/saml/", SAMLSP)
-				http.Handle("/", SAMLSP.RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					user := saml.UserFromRequest(r)
-					fmt.Fprintf(w, "Hello, domain:%s, user:%s, email: %s!, Url:%s", user.Domain, user.Name, user.Email, r.URL)
-				})))
-			}
 			log.Println("Handle anonymous user")
-			auth.ServeProxy(c)
+			if Config.UseSAMLAuth {
+				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
+					SAMLSP.ServeHTTP(c.Writer, c.Request)
+					// todo create user
+				} else {
+					SAMLSP.RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						user := saml.UserFromRequest(r)
+						fmt.Fprintf(w, "Hello, domain:%s, user:%s, email: %s!, Url:%s", user.Domain, user.Name, user.Email, r.URL)
+					}))
+				}
+			} else {
+				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
+					var req DemoRequest
+					if err := c.ShouldBindJSON(&req); err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+						return
+					}
+					c.SetCookie(
+						"remove-dev-env", // name
+						req.Cookie,       // value
+						3600,             // maxAge (seconds)
+						"/",              // path
+						".localhost.com", // domain
+						false,            // secure
+						true,             // httpOnly
+					)
+					c.JSON(200,
+						gin.H{
+							"status": "success",
+						})
+				} else {
+					c.HTML(200, "index.html", gin.H{
+						"title": "Welcome to Gin",
+					})
+				}
+			}
 		} else {
 			if !FindRoute(host, cookie, c) {
 				log.Println("Handle logged in user", cookie)
@@ -266,5 +301,5 @@ func main() {
 			}
 		}
 	})
-	r.Run(":10112")
+	r.Run(fmt.Sprintf(":%d", Config.Port))
 }

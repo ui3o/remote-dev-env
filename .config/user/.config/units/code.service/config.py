@@ -1,9 +1,10 @@
 conf = {
-    "timer": 0,
+    "timer": 3,
     "start": {
         "restartCount": 0,
+        "wd": "",
         "envs": {},
-        "params": ["--simple_auth_template_path=/usr/share/igo/addons/reverseproxy/simple/index.html"],
+        "params": [],
     },
     "stop": {
         "restartCount": 0,

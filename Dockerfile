@@ -66,16 +66,6 @@ RUN rm -rf /home/podman/.cache/code-server;\
     \n\</style></head>|g" "$CODE_WORKBENCH"
 
 
-COPY ./.config/user/ /home/podman/
-
-RUN rm -rf /home/podman/.local/share/containers
-VOLUME /var/lib/containers
-ENV _CONTAINERS_USERNS_CONFIGURED=""
-
-RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
-RUN chown -R podman:podman /home/podman && \
-    mkdir -p /home/podman/.local/share/containers
-
 STOPSIGNAL SIGRTMIN+3
 
 USER podman
@@ -99,6 +89,17 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
     echo [$ARCH] finish extension install.sh..
 
 USER root
+
+COPY ./.config/user/ /home/podman/
+RUN rm -rf /home/podman/.local/share/containers
+VOLUME /var/lib/containers
+ENV _CONTAINERS_USERNS_CONFIGURED=""
+
+RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
+RUN chown -R podman:podman /home/podman && \
+    mkdir -p /home/podman/.local/share/containers
+
+
 ENV PATH="/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
