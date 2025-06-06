@@ -229,7 +229,7 @@ func init() {
 
 	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
 	flag.StringVar(&Config.SimpleAuthTemplatePath, "simple_auth_template_path", "simple/index.html", "")
-	flag.StringVar(&Config.SAML.CookieName, "cookie_name", "remove-dev-env", "")
+	flag.StringVar(&Config.CookieName, "cookie_name", "remove-dev-env", "")
 
 	flag.StringVar(&Config.KeyFile, "server_key", "", "")
 	flag.StringVar(&Config.CertFile, "server_cert", "", "")
@@ -245,6 +245,10 @@ func init() {
 
 	flag.Parse()
 
+	if len(Config.SAML.CookieName) > 0 {
+		Config.CookieName = Config.SAML.CookieName
+	}
+
 	log.Println("SimpleAuthTemplatePath", Config.SimpleAuthTemplatePath)
 
 	if Config.UseSAMLAuth {
@@ -259,7 +263,7 @@ func main() {
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
-		cookie, err := c.Request.Cookie(Config.SAML.CookieName)
+		cookie, err := c.Request.Cookie(Config.CookieName)
 		host := c.Request.Host
 		log.Println("Handle host", host)
 		if err != nil {
@@ -280,35 +284,39 @@ func main() {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
 					var req simple.JWTUser
 					if err := c.ShouldBindJSON(&req); err != nil {
+						log.Println("Catch ShouldBindJSON err >", err)
 						c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 						return
 					}
 					cookie, err := simple.Encode(req)
 					if err == nil {
+						log.Println("c.SetCookie >", Config.CookieName, ", cookie >", cookie)
 						c.SetCookie(
-							Config.SAML.CookieName, // name
-							cookie,                 // value
-							3600,                   // maxAge (seconds)
-							"/",                    // path
-							".localhost.com",       // domain
-							false,                  // secure
-							true,                   // httpOnly
+							Config.CookieName, // name
+							cookie,            // value
+							3600,              // maxAge (seconds)
+							"/",               // path
+							".localhost.com",  // domain
+							false,             // secure
+							true,              // httpOnly
 						)
 						c.JSON(200,
 							gin.H{
 								"status": "success",
 							})
-
+						return
 					} else {
 						c.JSON(500,
 							gin.H{
 								"status": "failed",
 							})
+						return
 					}
 				} else {
 					c.HTML(200, "index.html", gin.H{
 						"title": "Welcome to Gin",
 					})
+					return
 				}
 			}
 		} else {

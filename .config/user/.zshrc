@@ -1,10 +1,12 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
 export USER="___USER___"
+export HOME="/home/$USER"
 if [[ "$USER" == "___USER___" ]]; then
   export USER=root
+  export HOME="/root"
 fi
-export PATH="/home/$USER/.local/bin:/home/$USER/npm/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/npm/bin:$PATH"
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
@@ -14,7 +16,7 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 # NODE_PATH setup
-export NODE_PATH="/home/$USER/npm/lib/node_modules"
+export NODE_PATH="$HOME/npm/lib/node_modules"
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -118,15 +120,7 @@ alias sudo="sudo -E"
 alias docker="podman"
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
-if [ -e /home/$USER/.nix-profile/etc/profile.d/nix.sh ]; then . /home/$USER/.nix-profile/etc/profile.d/nix.sh; fi
-source /home/$USER/.zshenv
-
-# custom function
-q() {
-  # TODO: meg kell oldani
-  # ootp $@
-  source /home/$USER/.zshenv
-}
+source $HOME/.zshenv
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
