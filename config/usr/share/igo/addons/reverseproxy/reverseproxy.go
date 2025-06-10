@@ -30,7 +30,7 @@ const (
 
 var (
 	SAMLSP          *samlsp.Middleware
-	AllRestEndpoint = make(map[string]*RestEndpointDefinition)
+	AllRestEndpoint = make(map[string]map[string]*RestEndpointDefinition)
 	AllRoutesRegexp = []*RouteMatch{}
 	Config          = RuntimeConfig{
 		SAML: &saml.SAMLConf,
@@ -58,7 +58,8 @@ type remote struct {
 }
 
 type RestEndpointDefinition struct {
-	Id         string
+	RouteId    string
+	UserName   string
 	Proxies    []string
 	Remotes    map[string]remote
 	PreHandler func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request)
@@ -83,7 +84,7 @@ func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.Respon
 			r.Header.Set("X-Forwarded-For", r.RemoteAddr)
 
 			if !pHandlerCall {
-				log.Println("PreHandler for ", p.Id)
+				log.Println("PreHandler for ", p.UserName, p.RouteId)
 				p.PreHandler(p, w, r)
 			}
 
@@ -189,7 +190,15 @@ func (p *RestEndpointDefinition) ServeProxy(c *gin.Context) {
 }
 
 func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *RestEndpointDefinition) {
-	// TODO remove orphans
+	// remove logged out user from reverse proxy
+	for k, _ := range AllRestEndpoint {
+		loginDir := fmt.Sprintf("/tmp/.logins/%s", k)
+		if _, err := os.Stat(loginDir); os.IsNotExist(err) {
+			log.Println("Remove user", k, "from AllRestEndpoint")
+			delete(AllRestEndpoint, k)
+		}
+	}
+
 	loginDir := fmt.Sprintf("/tmp/.logins/%s", userName)
 	if _, err := os.Stat(loginDir); os.IsNotExist(err) {
 		debug := os.Getenv("GOLANG_DEBUG")
@@ -207,19 +216,20 @@ func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *Re
 		}
 	}
 
-	id := fmt.Sprintf("%s_%s", userName, routeId)
-	if AllRestEndpoint[id] != nil {
-		log.Println("handle logged in user", id)
-		AllRestEndpoint[id].ServeProxy(c)
+	if AllRestEndpoint[userName] != nil && AllRestEndpoint[userName][routeId] != nil {
+		log.Println("handle logged in user", userName, "and route", routeId)
+		AllRestEndpoint[userName][routeId].ServeProxy(c)
 		return
 	}
 	content, err := os.ReadFile(fmt.Sprintf("%s/%s.port", loginDir, routeId))
 	if err == nil {
-		AllRestEndpoint[id] = endpoint
-		endpoint.Id = id
+		AllRestEndpoint[userName] = make(map[string]*RestEndpointDefinition)
+		AllRestEndpoint[userName][routeId] = endpoint
+		endpoint.RouteId = routeId
+		endpoint.UserName = userName
 		endpoint.Proxies = []string{fmt.Sprintf("http://localhost:%s", string(content))}
 		endpoint.Register()
-		log.Println("register and handle logged in user", id)
+		log.Println("register and handle logged in user", userName, "and route", routeId)
 		endpoint.ServeProxy(c)
 	}
 }

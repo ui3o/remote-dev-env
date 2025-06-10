@@ -108,4 +108,4 @@ RUN GOOS=linux go build -o reverseproxy.start .
 WORKDIR /usr/share/igo
 
 
-ENTRYPOINT [ "/usr/share/igo/igo/igo" ]
+ENTRYPOINT [ "/etc/entrypoint.sh" ]
