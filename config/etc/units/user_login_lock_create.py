@@ -77,12 +77,13 @@ create_file_with_content(f"{folder_path}/{userCounter}.lock", "")
 envList = []
 for idx, name in enumerate(DEDICATED_LOCAL_NAMES, start=0):
     count = userCounter + idx
-    envList.append(f"PORT_{name.upper()}={count}")
+    envList.append(f"PORT_{name}={count}")
     create_file_with_content(f"{folder_path}/{name}.port", str(count))
 
 for idx, name in enumerate(DEDICATED_GLOBAL_NAMES, start=0):
     count = GLOBAL_PORT_START + idx
-    envList.append(f"PORT_{name.upper()}={count}")
+    envList.append(f"PORT_{name}={count}")
+    create_file_with_content(f"{folder_path}/{name}.port", str(count))
 
 # unique list
 envList.append(f"USER={user}")

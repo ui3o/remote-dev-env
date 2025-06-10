@@ -77,7 +77,7 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
 #     code-server --install-extension KylinIDETeam.gitlens && \
     echo [$ARCH] finish extension install.sh..
 
-COPY ./.config/user/ /root/
+COPY ./config/user/ /root/
 VOLUME /var/lib/containers
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 
@@ -90,8 +90,8 @@ ENV PATH="/root/go/bin:$PATH"
 RUN usermod --shell /usr/bin/zsh root
 RUN cp -a /root/. /home/__example__/
 
-COPY ./.config/etc/ /etc/
-COPY .config/usr /usr
+COPY ./config/etc/ /etc/
+COPY ./config/usr /usr
 
 RUN	groupadd -f igo && groupadd -f igodev && groupadd -f igorun
 RUN ln -s /etc/units /usr/share/igo/.runtime/units/root/units
