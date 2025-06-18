@@ -2,6 +2,8 @@
 
 USER=$1
 
+echo "execute user.login.sh"
+
 if [[ ! -d /home/$USER ]]; then
     echo "User folder /home/$USER does not exist. Create a user!"
     mkdir -p /usr/share/igo/.runtime/units /tmp/.logins/

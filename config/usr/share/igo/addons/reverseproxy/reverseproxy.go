@@ -208,10 +208,13 @@ func loginUser(userName string, c *gin.Context) {
 		debug := os.Getenv("GOLANG_DEBUG")
 		var cmd *exec.Cmd
 		if debug == "" {
+			log.Println("run /etc/units/user.login.sh")
 			cmd = exec.Command("/etc/units/user.login.sh", userName)
 		} else {
+			log.Println("podman exec /etc/units/user.login.sh")
 			cmd = exec.Command("podman", "exec", "-it", "rdev", "/etc/units/user.login.sh", userName)
 		}
+		log.Println("execute command and grab output")
 		if out, err := cmd.Output(); err != nil {
 			log.Println(err)
 			return
@@ -291,9 +294,13 @@ func init() {
 	log.Println("SimpleAuthTemplatePath", Config.SimpleAuthTemplatePath)
 
 	if Config.UseSAMLAuth {
-		saml.InitSAML(SAMLSP)
-		log.Println("Init SAMLSP is >", SAMLSP)
-		log.Println("Init SAMLSP.Session is >", SAMLSP.Session)
+		if saml, err := saml.InitSAML(); err == nil {
+			SAMLSP = saml
+			log.Println("Init SAMLSP is >", SAMLSP)
+			log.Println("Init SAMLSP.Session is >", SAMLSP.Session)
+		} else {
+			log.Println("Error Init SAMLSP is >", err)
+		}
 	}
 }
 
