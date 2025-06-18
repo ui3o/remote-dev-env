@@ -292,6 +292,8 @@ func init() {
 
 	if Config.UseSAMLAuth {
 		saml.InitSAML(SAMLSP)
+		log.Println("Init SAMLSP is >", SAMLSP)
+		log.Println("Init SAMLSP.Session is >", SAMLSP.Session)
 	}
 }
 
@@ -384,6 +386,8 @@ func main() {
 					log.Println("SAMLSP handel /saml/")
 					SAMLSP.ServeHTTP(c.Writer, c.Request)
 				} else {
+					log.Println("SAMLSP is >", SAMLSP)
+					log.Println("SAMLSP.Session is >", SAMLSP.Session)
 					_, err := SAMLSP.Session.GetSession(c.Request)
 					log.Println("SAMLSP err >", err)
 					if err == samlsp.ErrNoSession {
