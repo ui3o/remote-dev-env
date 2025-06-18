@@ -424,7 +424,9 @@ func main() {
 		} else {
 			if user, err := simple.Decode(cookie.Value); err == nil {
 				// load localstorage page
-				if _, err := c.Request.Cookie(localstorageCookieName); err != nil {
+				filePath := fmt.Sprintf("/tmp/.logins/%s/localstorage", user.Name)
+				_, localstorageErr := os.Stat(filePath)
+				if _, err := c.Request.Cookie(localstorageCookieName); err != nil || localstorageErr != nil {
 					if c.Request.URL.Path == "/remote-dev-localstorage-loader" {
 						var req UserEnv
 						if err := c.ShouldBindJSON(&req); err != nil {

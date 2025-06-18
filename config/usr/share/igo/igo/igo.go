@@ -79,7 +79,7 @@ type AddonType struct {
 
 func DebugPrintln(a ...any) {
 	if Config.Debug {
-		fmt.Println(a)
+		fmt.Println(a...)
 	}
 }
 
@@ -645,17 +645,17 @@ func sendSIGKILLAfterTimeout(pid int) {
 	go func() {
 		defer activeKillers.Delete(pid)
 		time.Sleep(5 * time.Second)
-		proc, err := os.FindProcess(pid)
+		_, err := os.FindProcess(pid)
 		if err != nil {
 			return
 		}
 		time.Sleep(10 * time.Second)
-		proc, err = os.FindProcess(pid)
+		_, err = os.FindProcess(pid)
 		if err != nil {
 			return
 		}
 		time.Sleep(15 * time.Second)
-		proc, err = os.FindProcess(pid)
+		proc, err := os.FindProcess(pid)
 		if err != nil {
 			return
 		}
@@ -754,7 +754,7 @@ func setIgoGrpId() {
 func init() {
 	flag.BoolVar(&Config.Debug, "v", false, "verbose")
 	flag.Parse()
-	DebugPrintln("debug mode enabled!\n")
+	DebugPrintln("debug mode enabled!")
 	fmt.Println("[IGO] Starting ...")
 	zombieInit()
 	emptyOrigin()
@@ -779,9 +779,9 @@ func main() {
 				if !addon.IsRunning {
 					// (done) todo how many retry
 					// (done) todo is addon and has origin?
-					if v.Current.Timestamp != addon.Current.Timestamp || (addon.ExitCode == 0 && addon.IsOrigin == false) {
+					if v.Current.Timestamp != addon.Current.Timestamp || (addon.ExitCode == 0 && addon.IsOrigin) {
 						go v.Current.startAndRetry()
-					} else if addon.IsOrigin == true {
+					} else if addon.IsOrigin {
 						go v.Current.startAndRetry()
 					} else {
 						// (done) todo touch origin file

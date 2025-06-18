@@ -3,9 +3,23 @@
 package main
 
 import (
-	"github.com/ramr/go-reaper"
+	"syscall"
+	"time"
 )
 
 func zombieInit() {
-	go reaper.Reap()
+	go func() {
+		for {
+			// Wait for any child process (WNOHANG: don't block if none)
+			var ws syscall.WaitStatus
+			var ru syscall.Rusage
+			for {
+				pid, err := syscall.Wait4(-1, &ws, syscall.WNOHANG, &ru)
+				if pid <= 0 || err != nil {
+					break
+				}
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
 }
