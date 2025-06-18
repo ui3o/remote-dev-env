@@ -57,6 +57,7 @@ RUN cd /usr/lib/code-server/src/browser/pages && \
 
 
 STOPSIGNAL SIGRTMIN+3
+ENV GOPROXY=https://proxy.golang.org,direct
 
 # setup vscode-server extensions
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -101,11 +102,17 @@ RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
     chmod g+rws /usr/share/igo/ictl && chgrp -R igodev /usr/share/igo/ictl && \
     chgrp -R igorun /usr/share/igo/.runtime
 
+
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
 RUN GOOS=linux go build -o reverseproxy.start .
 WORKDIR /usr/share/igo
 
+ENV GIN_MODE=release
+ENV ENV_PARAM_REVERSEPROXY_SERVER_CERT=/usr/share/igo/addons/reverseproxy/example_cert/example_server_cert.pem
+ENV ENV_PARAM_REVERSEPROXY_SERVER_KEY=/usr/share/igo/addons/reverseproxy/example_cert/example_server_key.pem
+ENV ENV_PARAM_REVERSEPROXY_SIMPLE_AUTH_TEMPLATE_PATH=/usr/share/igo/addons/reverseproxy/simple/auth.html
+ENV ENV_PARAM_REVERSEPROXY_LOCALSTORAGE_TEMPLATE_PATH=/usr/share/igo/addons/reverseproxy/localstorage/localstorage.html
 
 ENTRYPOINT [ "/etc/entrypoint.sh" ]

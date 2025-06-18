@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import subprocess
 
 if len(sys.argv) < 2:
     print("Usage: python user_login_lock_create.py <folder_path>")
@@ -93,3 +94,17 @@ create_file_with_content(f"{folder_path}/.env", "\n".join(envList))
 
 for replace in FILE_REPLACE_STRINGS:
     find_and_replace_in_file(replace[0], replace[1], replace[2], replace[3])
+
+# todo chown for existing folder recursively with chown command
+try:
+    subprocess.run(
+        ["chown", "-R", f"{user}:{user}", f"/tmp/.logins/{user}"], check=True
+    )
+    subprocess.run(
+        ["chmod", "-R", "600", f"/tmp/.logins/{user}"], check=True
+    )
+    subprocess.run(
+        ["chmod", "700", f"/tmp/.logins/{user}"], check=True
+    )
+except Exception as e:
+    print(f"Failed to change ownership: {e}")

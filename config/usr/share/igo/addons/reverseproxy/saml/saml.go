@@ -27,7 +27,7 @@ type SAMLConfig struct {
 	AuthnNameIDFormat string
 }
 
-func InitSAML() {
+func InitSAML(mw *samlsp.Middleware) {
 	keyPair, err := tls.LoadX509KeyPair(SAMLConf.CertFile, SAMLConf.KeyFile)
 	if err != nil {
 		panic(err)
@@ -61,8 +61,8 @@ func InitSAML() {
 		EntityID:          SAMLConf.EntityID,
 		CookieName:        SAMLConf.CookieName,
 	}
-	SAMLSP, _ := samlsp.New(opt)
-	SAMLSP.ServiceProvider.AuthnNameIDFormat = saml.NameIDFormat(SAMLConf.AuthnNameIDFormat)
+	mw, _ = samlsp.New(opt)
+	mw.ServiceProvider.AuthnNameIDFormat = saml.NameIDFormat(SAMLConf.AuthnNameIDFormat)
 
-	SAMLSP.Session = DefaultSessionProvider(opt, SAMLConf.Domain)
+	mw.Session = DefaultSessionProvider(opt, SAMLConf.Domain)
 }
