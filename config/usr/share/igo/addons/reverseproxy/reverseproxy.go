@@ -296,8 +296,6 @@ func init() {
 	if Config.UseSAMLAuth {
 		if saml, err := saml.InitSAML(); err == nil {
 			SAMLSP = saml
-			log.Println("Init SAMLSP is >", SAMLSP)
-			log.Println("Init SAMLSP.Session is >", SAMLSP.Session)
 		} else {
 			log.Println("Error Init SAMLSP is >", err)
 		}
@@ -368,6 +366,32 @@ func lookupUserIds(username string) (int, int) {
 	return uid, gid
 }
 
+func readUser(r *http.Request) (*simple.JWTUser, error) {
+	if Config.UseSAMLAuth {
+		log.Println("readUser, Config.UseSAMLAuth start")
+		user := saml.UserFromRequest(r)
+		log.Println("readUser, Config.UseSAMLAuth user: ", user.Name)
+		return &simple.JWTUser{
+			Domain: user.Domain,
+			Name:   user.Name,
+			Email:  user.Email,
+		}, nil
+	} else {
+		if cookie, err := r.Cookie(Config.CookieName); err == nil {
+			if user, err := simple.Decode(cookie.Value); err == nil {
+				return user, nil
+			} else {
+				log.Println("readUser, simple.Decode error:", err)
+				return nil, err
+			}
+		} else {
+			log.Println("readUser, cookie get error:", err)
+			return nil, err
+		}
+	}
+
+}
+
 func main() {
 	localstorageCookieName := "remote-dev-localstorage"
 	domainCookieName := "remote-dev-domain"
@@ -378,7 +402,6 @@ func main() {
 	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath, Config.LocalstorageTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
 		host := c.Request.Host
-		domainCookieData := host
 		log.Println("Handle host", host)
 
 		found, _ := findRoute(host)
@@ -390,11 +413,9 @@ func main() {
 			log.Println("Handle anonymous user, because error is: ", err)
 			if Config.UseSAMLAuth {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
-					log.Println("SAMLSP handel /saml/")
+					log.Println("SAMLSP handle /saml/")
 					SAMLSP.ServeHTTP(c.Writer, c.Request)
 				} else {
-					log.Println("SAMLSP is >", SAMLSP)
-					log.Println("SAMLSP.Session is >", SAMLSP.Session)
 					_, err := SAMLSP.Session.GetSession(c.Request)
 					log.Println("SAMLSP err >", err)
 					if err == samlsp.ErrNoSession {
@@ -433,7 +454,7 @@ func main() {
 				}
 			}
 		} else {
-			if user, err := simple.Decode(cookie.Value); err == nil {
+			if user, err := readUser(c.Request); err == nil {
 				// load localstorage page
 				filePath := fmt.Sprintf("/tmp/.logins/%s/localstorage", user.Name)
 				_, localstorageErr := os.Stat(filePath)
@@ -471,8 +492,12 @@ func main() {
 					return
 				} else {
 					if Config.ReplaceSubdomainToCookie {
-						host = domainCookieData
-						log.Println("Replace subdomain to cookie", host)
+						if domainCookie, err := c.Request.Cookie(domainCookieName); err == nil {
+							host = domainCookie.Value
+							log.Println("Replace subdomain to cookie", host)
+						} else {
+							log.Println("Error on domainCookie read ", err)
+						}
 					}
 					if found, foundedRoute := findRoute(host); found {
 						HandleRequest(user.Name, foundedRoute.Id, c, &RestEndpointDefinition{
