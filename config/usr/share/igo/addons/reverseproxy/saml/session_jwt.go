@@ -172,7 +172,7 @@ func AttributeFromContext(ctx context.Context, name string) string {
 	return sa.GetAttributes().Get(name)
 }
 
-func pop(xs *[]string) string {
+func Pop(xs *[]string) string {
 	if len(*xs) > 0 {
 		x := (*xs)[len(*xs)-1]
 		*xs = (*xs)[:len(*xs)-1]
@@ -194,8 +194,8 @@ func UserFromRequest(r *http.Request) JWTUser {
 	domainAndName = sa.StandardClaims.Subject
 	user := strings.Split(domainAndName, "\\")
 	return JWTUser{
-		Name:   pop(&user),
-		Domain: pop(&user),
+		Name:   Pop(&user),
+		Domain: Pop(&user),
 		Email:  AttributeFromContext(r.Context(), "emailaddress"),
 	}
 

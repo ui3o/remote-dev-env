@@ -369,13 +369,23 @@ func lookupUserIds(username string) (int, int) {
 func readUser(r *http.Request) (*simple.JWTUser, error) {
 	if Config.UseSAMLAuth {
 		log.Println("readUser, Config.UseSAMLAuth start")
-		user := saml.UserFromRequest(r)
-		log.Println("readUser, Config.UseSAMLAuth user: ", user.Name)
-		return &simple.JWTUser{
-			Domain: user.Domain,
-			Name:   user.Name,
-			Email:  user.Email,
-		}, nil
+		if session, err := SAMLSP.Session.GetSession(r); err == nil {
+			if cookieSession, ok := session.(saml.JWTSessionClaims); ok {
+				domainAndName := cookieSession.StandardClaims.Subject
+				user := strings.Split(domainAndName, "\\")
+				return &simple.JWTUser{
+					Name:   strings.ToLower(saml.Pop(&user)),
+					Domain: strings.ToLower(saml.Pop(&user)),
+					Email:  strings.ToLower(cookieSession.Attributes.Get("emailaddress")),
+				}, nil
+			} else {
+				log.Println("readUser, JWTSessionClaims cast error")
+				return nil, fmt.Errorf("JWTSessionClaims cast error")
+			}
+		} else {
+			log.Println("readUser, session error: ", err)
+			return nil, err
+		}
 	} else {
 		if cookie, err := r.Cookie(Config.CookieName); err == nil {
 			if user, err := simple.Decode(cookie.Value); err == nil {
@@ -389,7 +399,6 @@ func readUser(r *http.Request) (*simple.JWTUser, error) {
 			return nil, err
 		}
 	}
-
 }
 
 func main() {
