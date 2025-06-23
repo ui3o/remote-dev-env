@@ -31,7 +31,7 @@ DEDICATED_GLOBAL_NAMES = [
     *[f"GPR{i}" for i in range(1, MAX_PORT_COUNTER + 1)],
 ]
 
-FILE_REPLACE_STRINGS = [[f"/home/{user}/.zshrc", "___USER___", user, 1]]
+FILE_REPLACE_STRINGS = [["/root/.zshrc", "___USER___", user, 1]]
 
 
 # recursively find file name in a specific folder and file name has to be regex match
@@ -87,8 +87,9 @@ for idx, name in enumerate(DEDICATED_GLOBAL_NAMES, start=0):
     create_file_with_content(f"{folder_path}/{name}.port", str(count))
 
 # unique list
-envList.append(f"USER={user}")
-envList.append(f"HOME=/home/{user}")
+envList.append(f"USERNAME={user}")
+envList.append("USER=root")
+envList.append("HOME=/root")
 
 create_file_with_content(f"{folder_path}/.env", "\n".join(envList))
 

@@ -10,9 +10,10 @@ EXPOSE 7681
 RUN dnf upgrade -y && dnf install -y dnf-plugins-core
 RUN dnf copr enable -y varlad/zellij && dnf copr enable -y totalfreak/lazygit
 RUN dnf install -y binutils rsync mandoc ncat \
-    openssh ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
+    openssh openssl ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
-    fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang
+    fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
+    telnet iputils
 
 RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch) -o /opt/ttyd && \
     chmod +x /opt/ttyd
@@ -89,13 +90,12 @@ RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 ENV PATH="/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
-RUN cp -a /root/. /home/__example__/
 
 COPY ./config/etc/ /etc/
 COPY ./config/usr /usr
 
 RUN	groupadd -f igo && groupadd -f igodev && groupadd -f igorun
-RUN ln -s /etc/units /usr/share/igo/.runtime/units/root/units
+RUN ln -s /etc/units /usr/share/igo/.runtime/units/system
 RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
     chmod g+rws /usr/share/igo/addons && chgrp -R igodev /usr/share/igo/addons && \
     chmod g+rws /usr/share/igo/igo && chgrp -R igodev /usr/share/igo/igo && \

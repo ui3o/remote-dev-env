@@ -199,6 +199,9 @@ func findRunnables() Addons {
 		} else {
 			DebugPrintln("exec type is unit")
 			username := extractUserFromStartPath(addon.Current.StartPath)
+			if username == "system" {
+				username = "root"
+			}
 			linuxUser, err := user.Lookup(username)
 			if err == nil {
 				// Check file owner matches user

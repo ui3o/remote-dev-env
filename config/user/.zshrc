@@ -1,11 +1,8 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
-export USER="___USER___"
-export HOME="/home/$USER"
-if [[ "$USER" == "___USER___" ]]; then
-  export USER=root
-  export HOME="/root"
-fi
+export USERNAME="___USER___"
+export USER="root"
+export HOME="/root"
 export PATH="$HOME/.local/bin:$HOME/npm/bin:$PATH"
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
