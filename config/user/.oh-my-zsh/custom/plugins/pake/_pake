@@ -1,0 +1,5 @@
+#compdef pake
+local -a subcmds
+subcmds=("${(@f)$(node ~/.oh-my-zsh/custom/plugins/pake/index.js)}")
+_describe 'pake' subcmds
+

@@ -1,0 +1,84 @@
+#!python3
+
+import inspect
+import logging
+import os
+import sys
+
+sys.path.insert(0, os.getcwd())
+sys.dont_write_bytecode = True
+import Makefile
+
+callables = []
+
+
+class FixedLevelFormatter(logging.Formatter):
+    def format(self, record):
+        # Pad levelname to 8 chars for alignment
+        record.levelname = record.levelname.upper()[:4]
+        return super().format(record)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(FixedLevelFormatter("[%(asctime)s] [%(levelname)s] %(message)s"))
+logging.getLogger().handlers = [handler]
+logging.getLogger().setLevel(logging.DEBUG)
+
+
+def str_to_bool(s: str | bool):
+    if isinstance(s, bool):
+        return s
+    if s is bool:
+        return s
+    if s.lower() in ("True", "true", "1", "yes", "on"):
+        return True
+    if s.lower() in ("False", "false", "0", "no", "off"):
+        return False
+    raise ValueError
+
+
+ARGS = sys.argv[1:]
+while ARGS:
+    arg = ARGS.pop(0)
+    argParamSize = arg.split(".")[1]
+    arg = arg.split(".")[0]
+    if hasattr(Makefile, arg) and callable(getattr(Makefile, arg)):
+        call_args = []
+        allArgParamSize = int(argParamSize[0])
+        setArgParamSize = int(argParamSize[1])
+        pickedParam = 0
+        funcParams = inspect.signature(getattr(Makefile, arg)).parameters.items()
+        for name, param in funcParams:
+            if pickedParam < allArgParamSize - setArgParamSize:
+                pickedParam += 1
+                value = ARGS.pop(0) if ARGS else None
+            else:
+                value = param.default
+            if value is None:
+                print(
+                    f"Your {arg} target needs parameters: {name}[{param.annotation.__name__}]"
+                )
+            else:
+                try:
+                    if param.annotation is int:
+                        call_args.append(int(value))
+                    elif param.annotation is bool:
+                        call_args.append(str_to_bool(value))
+                    elif param.annotation is float:
+                        call_args.append(float(value))
+                    else:
+                        call_args.append(str(value))
+                except ValueError:
+                    print(
+                        f"Your {arg} target needs parameters: {name}[{param.annotation.__name__}] => {value} is [str]"
+                    )
+        if len(call_args) == len(funcParams):
+            callables.append({"name": getattr(Makefile, arg), "args": call_args})
+        else:
+            exit(1)
+    else:
+        print(f"Your Makefile.py does not have {arg} target!!!")
+        exit(1)
+
+for c in callables:
+    c["name"](*c["args"])
