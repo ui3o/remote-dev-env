@@ -87,7 +87,7 @@ RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 # RUN chown -R podman:podman /home/podman && \
 #     mkdir -p /home/podman/.local/share/containers
 
-ENV PATH="/root/go/bin:$PATH"
+ENV PATH="/root/.local/bin:/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
 
