@@ -17,7 +17,7 @@ mount --make-rshared /
 
 # set USERNAME podman run 
 
-mkdir -p /usr/share/igo/.runtime/units /tmp/.logins
+mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins
 echo root:10000:5000 >/etc/subuid
 echo root:10000:5000 >/etc/subgid
 
@@ -25,7 +25,8 @@ echo root:10000:5000 >/etc/subgid
 if [[ "${DEV_CONT_MODE_REVERSEPROXY_ONLY:-false}" == "true" ]]; then
     echo "DEV_CONT_MODE_REVERSEPROXY_ONLY is set, remove units"
 else
-    python3 /etc/units/user_login_lock_create.py /tmp/.logins/$USERNAME
+    rm -rf /tmp/.runtime/logins/$USERNAME
+    python3 /etc/units/user_login_lock_create.py /tmp/.runtime/logins/$USERNAME
     ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
 fi
 

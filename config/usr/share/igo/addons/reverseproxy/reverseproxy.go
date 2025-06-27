@@ -83,6 +83,10 @@ type UserEnv struct {
 	jwt.RegisteredClaims
 }
 
+const DOMAIN_COOKIE_NAME = "remote-dev-domain"
+const LOCALSTORAGE_COOKIE_NAME = "remote-dev-localstorage"
+const PROXY_USER_NAME = "proxy-user-name"
+
 func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.ResponseWriter, r *http.Request) {
 	ar := r.Context().Value(availableRemoteId).(*availableRemote)
 	pHandlerCall := r.Context().Value(preHandlerCalled).(bool)
@@ -119,6 +123,7 @@ func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.Respon
 				targetURL := "ws://" + p.Remotes[k].remote.Host + r.WithContext(ctx).RequestURI
 				backendConn, _, err := websocket.DefaultDialer.Dial(targetURL, reqHeader)
 				if err != nil {
+					loginUser(r, true)
 					log.Println("Backend dial error:", err)
 					return
 				}
@@ -166,6 +171,9 @@ func (p *RestEndpointDefinition) serveNextProxy(currentState bool, w http.Respon
 				p.Remotes[k].reverse.ServeHTTP(w, r.WithContext(ctx))
 			}
 			return
+		} else {
+			loginUser(r, true)
+			log.Println("Remote", k, "is not available, skip")
 		}
 	}
 }
@@ -202,18 +210,13 @@ func (p *RestEndpointDefinition) ServeProxy(c *gin.Context) {
 	p.serveNextProxy(true, c.Writer, c.Request.WithContext(ctx))
 }
 
-func loginUser(userName string, c *gin.Context) {
-	loginDir := fmt.Sprintf("/tmp/.logins/%s", userName)
-	if _, err := os.Stat(loginDir); os.IsNotExist(err) {
-		debug := os.Getenv("GOLANG_DEBUG")
+func loginUser(r *http.Request, force bool) {
+	userName := r.Header.Get(PROXY_USER_NAME)
+	loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", userName)
+	if _, err := os.Stat(loginDir); os.IsNotExist(err) || force {
 		var cmd *exec.Cmd
-		if debug == "" {
-			log.Println("run /etc/units/user.login.sh")
-			cmd = exec.Command("/etc/units/user.login.sh", userName)
-		} else {
-			log.Println("podman exec /etc/units/user.login.sh")
-			cmd = exec.Command("podman", "exec", "-it", "rdev", "/etc/units/user.login.sh", userName)
-		}
+		log.Println("run pake start")
+		cmd = exec.Command("pake", "start.10", userName)
 		log.Println("execute command and grab output")
 		if out, err := cmd.Output(); err != nil {
 			log.Println(err)
@@ -225,10 +228,10 @@ func loginUser(userName string, c *gin.Context) {
 }
 
 func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *RestEndpointDefinition) {
-	loginDir := fmt.Sprintf("/tmp/.logins/%s", userName)
+	loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", userName)
 	// remove logged out user from reverse proxy
 	for k, _ := range AllRestEndpoint {
-		loginDir := fmt.Sprintf("/tmp/.logins/%s", k)
+		loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", k)
 		if _, err := os.Stat(loginDir); os.IsNotExist(err) {
 			log.Println("Remove user", k, "from AllRestEndpoint")
 			delete(AllRestEndpoint, k)
@@ -302,8 +305,8 @@ func init() {
 	}
 }
 
-func createCookie(c *gin.Context, cookieName, cookieData string) {
-	host := c.Request.Host
+func createCookie(r *http.Request, w http.ResponseWriter, cookieName, cookieData string) {
+	host := r.Host
 	log.Println("c.SetCookie >", cookieName, ", cookie >", cookieData)
 	if conditions := strings.Split(host, ":"); len(conditions) > 0 {
 		host = conditions[0]
@@ -316,24 +319,7 @@ func createCookie(c *gin.Context, cookieName, cookieData string) {
 		domain = "." + strings.Join(conditions, ".")
 		// parentDomain = strings.Join(conditions, ".")
 	}
-	c.SetCookie(
-		cookieName,       // name
-		cookieData,       // value
-		Config.CookieAge, // maxAge (seconds)
-		"/",              // path
-		domain,           // domain
-		false,            // secure
-		true,             // httpOnly
-	)
-	// c.SetCookie(
-	// 	cookieName,       // name
-	// 	cookieData,       // value
-	// 	Config.CookieAge, // maxAge (seconds)
-	// 	"/",              // path
-	// 	parentDomain,     // domain
-	// 	false,            // secure
-	// 	true,             // httpOnly
-	// )
+	w.Header().Add("Set-Cookie", fmt.Sprintf("%s=%s; Max-Age=%d; Path=/; Domain=%s; Secure=false; HttpOnly=true", cookieName, cookieData, Config.CookieAge, domain))
 }
 
 func findRoute(host string) (found bool, foundedRoute *RouteMatch) {
@@ -366,18 +352,67 @@ func lookupUserIds(username string) (int, int) {
 	return uid, gid
 }
 
-func readUser(r *http.Request) (*simple.JWTUser, error) {
+func checkLocalStorage(r *http.Request, user *simple.JWTUser) {
+	filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/localstorage", user.Name)
+	r.Header.Add(PROXY_USER_NAME, user.Name)
+	_, localstorageErr := os.Stat(filePath)
+	if _, err := r.Cookie(LOCALSTORAGE_COOKIE_NAME); err == nil && localstorageErr == nil {
+		user.HasEnv = true
+	}
+}
+
+func readUser(r *http.Request, w http.ResponseWriter) (*simple.JWTUser, error) {
+	host := r.Host
+	found, _ := findRoute(r.Host)
+	if found {
+		createCookie(r, w, DOMAIN_COOKIE_NAME, r.Host)
+	}
+
+	if Config.ReplaceSubdomainToCookie {
+		if domainCookie, err := r.Cookie(DOMAIN_COOKIE_NAME); err == nil {
+			host = domainCookie.Value
+		}
+	}
+
+	log.Println("readUser, path", r.URL.Path, host)
+	if strings.Contains(r.URL.Path, "/static/out/vs/workbench") || strings.Contains(r.URL.Path, "/_static/src/browser") || strings.Contains(r.URL.Path, "/_static/out/browser") {
+		virtualUserName := "none"
+		if Config.ReplaceSubdomainToCookie {
+			host = "code." + host
+		}
+		if dirs, err := os.ReadDir("/tmp/.runtime/logins"); err == nil {
+			for _, dir := range dirs {
+				if dir.IsDir() {
+					virtualUserName = dir.Name()
+					break
+				}
+			}
+		}
+		log.Println("virtual user create", r.URL.Path, virtualUserName)
+		r.Header.Add(PROXY_USER_NAME, virtualUserName)
+		return &simple.JWTUser{
+			HasEnv: true,
+			Host:   host,
+			Name:   virtualUserName,
+			Domain: virtualUserName,
+			Email:  virtualUserName,
+		}, nil
+	}
+
 	if Config.UseSAMLAuth {
 		log.Println("readUser, Config.UseSAMLAuth start")
 		if session, err := SAMLSP.Session.GetSession(r); err == nil {
 			if cookieSession, ok := session.(saml.JWTSessionClaims); ok {
 				domainAndName := cookieSession.StandardClaims.Subject
 				user := strings.Split(domainAndName, "\\")
-				return &simple.JWTUser{
+				jwtUser := simple.JWTUser{
+					Host:   host,
 					Name:   strings.ToLower(saml.Pop(&user)),
 					Domain: strings.ToLower(saml.Pop(&user)),
 					Email:  strings.ToLower(cookieSession.Attributes.Get("emailaddress")),
-				}, nil
+				}
+				checkLocalStorage(r, &jwtUser)
+				return &jwtUser, nil
 			} else {
 				log.Println("readUser, JWTSessionClaims cast error")
 				return nil, fmt.Errorf("JWTSessionClaims cast error")
@@ -389,6 +424,8 @@ func readUser(r *http.Request) (*simple.JWTUser, error) {
 	} else {
 		if cookie, err := r.Cookie(Config.CookieName); err == nil {
 			if user, err := simple.Decode(cookie.Value); err == nil {
+				user.Host = host
+				checkLocalStorage(r, user)
 				return user, nil
 			} else {
 				log.Println("readUser, simple.Decode error:", err)
@@ -402,23 +439,19 @@ func readUser(r *http.Request) (*simple.JWTUser, error) {
 }
 
 func main() {
-	localstorageCookieName := "remote-dev-localstorage"
-	domainCookieName := "remote-dev-domain"
 	AllRoutesRegexp = append(AllRoutesRegexp, &RouteMatch{Regex: regexp.MustCompile(`^code.`), Id: "CODE"})
 	AllRoutesRegexp = append(AllRoutesRegexp, &RouteMatch{Regex: regexp.MustCompile(`^rsh.`), Id: "RSH"})
 
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath, Config.LocalstorageTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
-		host := c.Request.Host
-		log.Println("Handle host", host)
-
-		found, _ := findRoute(host)
-		if found {
-			createCookie(c, domainCookieName, c.Request.Host)
+		log.Println("Handle host", c.Request.Host, "and path", c.Request.URL.Path, "with header", c.Request.Header["Sec-Fetch-Dest"])
+		// c.Header("Content-Type", c.Request.Header.Get("Sec-Fetch-Dest"))
+		if strings.Contains(c.Request.URL.Path, ".js") {
+			c.Header("Content-Type", "application/javascript")
 		}
 
-		if cookie, err := c.Request.Cookie(Config.CookieName); err != nil {
+		if user, err := readUser(c.Request, c.Writer); err != nil {
 			log.Println("Handle anonymous user, because error is: ", err)
 			if Config.UseSAMLAuth {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
@@ -442,7 +475,7 @@ func main() {
 					}
 					cookie, err := simple.Encode(req)
 					if err == nil {
-						createCookie(c, Config.CookieName, cookie)
+						createCookie(c.Request, c.Writer, Config.CookieName, cookie)
 						c.JSON(200,
 							gin.H{
 								"status": "success",
@@ -463,64 +496,50 @@ func main() {
 				}
 			}
 		} else {
-			if user, err := readUser(c.Request); err == nil {
-				// load localstorage page
-				filePath := fmt.Sprintf("/tmp/.logins/%s/localstorage", user.Name)
-				_, localstorageErr := os.Stat(filePath)
-				if _, err := c.Request.Cookie(localstorageCookieName); err != nil || localstorageErr != nil {
-					if c.Request.URL.Path == "/remote-dev-localstorage-loader" {
-						var req UserEnv
-						if err := c.ShouldBindJSON(&req); err != nil {
-							log.Println("Catch ShouldBindJSON err >", err)
-							c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-							return
-						}
-						log.Println("localstorageCookie is", req.Storage)
-						createCookie(c, localstorageCookieName, "synced")
-						loginUser(user.Name, c)
-
-						filePath := fmt.Sprintf("/tmp/.logins/%s/localstorage", user.Name)
-						if err := os.WriteFile(filePath, []byte(req.Storage), 0600); err != nil {
-							log.Println("Failed to write localstorage file:", err)
-						} else {
-							// set file owner to the user if needed (requires root privileges)
-							uid, gid := lookupUserIds(user.Name)
-							os.Chown(filePath, uid, gid)
-						}
-						c.JSON(200,
-							gin.H{
-								"status": "success",
-							})
+			// load localstorage page
+			if !user.HasEnv {
+				if c.Request.URL.Path == "/remote-dev-localstorage-loader" {
+					var req UserEnv
+					if err := c.ShouldBindJSON(&req); err != nil {
+						log.Println("Catch ShouldBindJSON err >", err)
+						c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 						return
-					} else {
-						c.HTML(200, "localstorage.html", gin.H{
-							"title": "Send localstorage to server",
-						})
-
 					}
+					log.Println("localstorageCookie is", req.Storage)
+					createCookie(c.Request, c.Writer, LOCALSTORAGE_COOKIE_NAME, "synced")
+					loginUser(c.Request, false)
+
+					filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/localstorage", user.Name)
+					if err := os.WriteFile(filePath, []byte(req.Storage), 0600); err != nil {
+						log.Println("Failed to write localstorage file:", err)
+					} else {
+						// set file owner to the user if needed (requires root privileges)
+						uid, gid := lookupUserIds(user.Name)
+						os.Chown(filePath, uid, gid)
+					}
+					c.JSON(200,
+						gin.H{
+							"status": "success",
+						})
 					return
 				} else {
-					if Config.ReplaceSubdomainToCookie {
-						if domainCookie, err := c.Request.Cookie(domainCookieName); err == nil {
-							host = domainCookie.Value
-							log.Println("Replace subdomain to cookie", host)
-						} else {
-							log.Println("Error on domainCookie read ", err)
-						}
-					}
-					if found, foundedRoute := findRoute(host); found {
-						HandleRequest(user.Name, foundedRoute.Id, c, &RestEndpointDefinition{
-							PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
-								w.Header().Add("foo", "bar")
-							}})
-					} else {
-						log.Println("Handle logged in user", cookie)
-						return
-					}
+					c.HTML(200, "localstorage.html", gin.H{
+						"title": "Send localstorage to server",
+					})
 
 				}
+				return
+			} else {
+				if found, foundedRoute := findRoute(user.Host); found {
+					HandleRequest(user.Name, foundedRoute.Id, c, &RestEndpointDefinition{
+						PreHandler: func(ep *RestEndpointDefinition, w http.ResponseWriter, r *http.Request) {
+							// w.Header().Add("foo", "bar")
+						}})
+				} else {
+					log.Println("Handle logged in user", user.Name)
+					return
+				}
 			}
-
 		}
 	})
 

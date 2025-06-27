@@ -6,7 +6,7 @@ echo "execute user.login.sh"
 
 if [[ ! -d /home/$USER ]]; then
     echo "User folder /home/$USER does not exist. Create a user!"
-    mkdir -p /usr/share/igo/.runtime/units /tmp/.logins/
+    mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins/
     useradd $USER
     usermod -aG igo $USER
     usermod -aG igorun $USER
@@ -18,9 +18,9 @@ if [[ ! -d /home/$USER ]]; then
     chown -R $USER:$USER /home/$USER/
 fi
 
-# /tmp/.logins/user not exist
-if [[ ! -d /tmp/.logins/$USER ]]; then
-    python3 /etc/units/user_login_lock_create.py /tmp/.logins/$USER
+# /tmp/.runtime/logins/user not exist
+if [[ ! -d /tmp/.runtime/logins/$USER ]]; then
+    python3 /etc/units/user_login_lock_create.py /tmp/.runtime/logins/$USER
     ln -sf /home/$USER/.config/units/ /usr/share/igo/.runtime/units/$USER
     chown -h $USER:$USER /usr/share/igo/.runtime/units/$USER
 fi

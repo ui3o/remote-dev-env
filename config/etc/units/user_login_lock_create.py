@@ -60,7 +60,7 @@ def create_file_with_content(file_path, content):
         f.write(content)
 
 
-files = find_files_by_regex("/tmp/.logins", r".*\.lock$")
+files = find_files_by_regex("/tmp/.runtime/logins", r".*\.lock$")
 userCounter = USER_PORT_START
 if len(files) > 0:
     for file in files:
@@ -73,7 +73,7 @@ if len(files) > 0:
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
-# /tmp/.logins/user/1000.lock
+# /tmp/.runtime/logins/user/1000.lock
 create_file_with_content(f"{folder_path}/{userCounter}.lock", "")
 envList = []
 for idx, name in enumerate(DEDICATED_LOCAL_NAMES, start=0):
@@ -95,17 +95,3 @@ create_file_with_content(f"{folder_path}/.env", "\n".join(envList))
 
 for replace in FILE_REPLACE_STRINGS:
     find_and_replace_in_file(replace[0], replace[1], replace[2], replace[3])
-
-# todo chown for existing folder recursively with chown command
-try:
-    subprocess.run(
-        ["chown", "-R", f"{user}:{user}", f"/tmp/.logins/{user}"], check=True
-    )
-    subprocess.run(
-        ["chmod", "-R", "600", f"/tmp/.logins/{user}"], check=True
-    )
-    subprocess.run(
-        ["chmod", "700", f"/tmp/.logins/{user}"], check=True
-    )
-except Exception as e:
-    print(f"Failed to change ownership: {e}")

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source /tmp/.logins/$USERNAME/.env
+source /tmp/.runtime/logins/$USERNAME/.env
 
 cd /root
 /usr/bin/code-server --port $PORT_CODE
