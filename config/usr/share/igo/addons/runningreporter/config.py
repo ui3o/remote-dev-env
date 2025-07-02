@@ -2,7 +2,7 @@ conf = {
     "timer": 0,
     "start": {
         "restartCount": 0,
-        "wd": "/usr/share/igo/addons/reverseproxy",
+        "wd": "",
         "envs": {},
         "params": [],
     },

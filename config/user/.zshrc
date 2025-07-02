@@ -1,6 +1,6 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
-export USERNAME="___USER___"
+export DEVELOPER="___USER___"
 export USER="root"
 export HOME="/root"
 export PATH="$HOME/.local/bin:$HOME/npm/bin:$PATH"
@@ -87,7 +87,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(git npm fzf fzf-tab)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(golang oc git npm fzf fzf-tab make)
+plugins=(golang oc git npm fzf fzf-tab make pake)
 
 source $ZSH/oh-my-zsh.sh
 

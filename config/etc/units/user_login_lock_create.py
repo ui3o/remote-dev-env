@@ -87,7 +87,7 @@ for idx, name in enumerate(DEDICATED_GLOBAL_NAMES, start=0):
     create_file_with_content(f"{folder_path}/{name}.port", str(count))
 
 # unique list
-envList.append(f"USERNAME={user}")
+envList.append(f"DEVELOPER={user}")
 envList.append("USER=root")
 envList.append("HOME=/root")
 

@@ -12,11 +12,11 @@ const (
 )
 
 type JWTUser struct {
-	HasEnv bool   `json:"env"`
-	Host   string `json:"host"`
-	Domain string `json:"domain"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
+	HasSecret bool   `json:"secret"`
+	Host      string `json:"host"`
+	Domain    string `json:"domain"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
 	jwt.RegisteredClaims
 }
 

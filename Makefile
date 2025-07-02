@@ -7,18 +7,18 @@ UID=$(shell id -u)
 # # -e DOCKER_HOST=ssh://core@host.containers.intenal:50533/run/user/501/podman/podman.sock
 
 PODMAN_REMOTE=-v /run/user/$(UID)/podman/podman.sock:/run/podman/podman.sock:ro -e DOCKER_HOST=unix:///run/podman/podman.sock
-ifeq ($(PLATFORM),arm64)
-PODMAN_REMOTE=-e DOCKER_HOST=ssh://core@host.containers.intenal:50533/run/user/$(UID)/podman/podman.sock
-endif
 
+# -v /tmp/.runtime:/tmp/.runtime \
 # run target for Local Remote Dev Environment
 run:
-	podman run --rm --network host --name rdev -e USERNAME=foo\
+	podman run --rm --network host --name rdev -e DEVELOPER=reverse_proxy\
+		-e DEV_CONT_HOST_UID=$(UID) \
+		-e ENV_PARAM_REVERSEPROXY_REPLACE_SUBDOMAIN_TO_COOKIE="true" \
 		-e DEV_CONT_MODE_REVERSEPROXY_ONLY=true \
 		-e ENV_PARAM_REVERSEPROXY_PORT=10111 \
 		--mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro \
 		-v r_dev_shared_vol:/var/lib/shared-containers \
-		-v /tmp/.runtime:/tmp/.runtime \
+		-v r_dev_shared_runtime:/tmp/.runtime \
 		$(PODMAN_REMOTE) \
 		-it --privileged \
 		localhost/local-remote-dev-env:latest

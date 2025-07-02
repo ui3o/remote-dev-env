@@ -10,9 +10,8 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/exec"
-	"os/user"
 	"regexp"
-	"strconv"
+	"time"
 
 	"net/url"
 	"strings"
@@ -214,10 +213,9 @@ func loginUser(r *http.Request, force bool) {
 	userName := r.Header.Get(PROXY_USER_NAME)
 	loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", userName)
 	if _, err := os.Stat(loginDir); os.IsNotExist(err) || force {
-		var cmd *exec.Cmd
 		log.Println("run pake start")
-		cmd = exec.Command("pake", "start.10", userName)
-		log.Println("execute command and grab output")
+		cmd := exec.Command("pake", "start.10", userName)
+		log.Println("execute command and grab output", cmd.Dir)
 		if out, err := cmd.Output(); err != nil {
 			log.Println(err)
 			return
@@ -227,16 +225,35 @@ func loginUser(r *http.Request, force bool) {
 	}
 }
 
-func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *RestEndpointDefinition) {
-	loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", userName)
+func removeLogoutUsers() {
 	// remove logged out user from reverse proxy
-	for k, _ := range AllRestEndpoint {
-		loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", k)
+	for k := range AllRestEndpoint {
+		loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s/.running", k)
 		if _, err := os.Stat(loginDir); os.IsNotExist(err) {
 			log.Println("Remove user", k, "from AllRestEndpoint")
 			delete(AllRestEndpoint, k)
 		}
 	}
+
+	if dirs, err := os.ReadDir("/tmp/.runtime/logins"); err == nil {
+		for _, dir := range dirs {
+			if dir.IsDir() {
+				runningStatus := fmt.Sprintf("/tmp/.runtime/logins/%s/.running", dir.Name())
+				if _, err := os.Stat(runningStatus); os.IsNotExist(err) {
+					log.Println("Remove user folder", runningStatus)
+					os.RemoveAll(fmt.Sprintf("/tmp/.runtime/logins/%s", dir.Name()))
+				} else {
+					os.RemoveAll(runningStatus)
+				}
+			}
+		}
+	}
+
+}
+
+func HandleRequest(userName string, routeId string, c *gin.Context, endpoint *RestEndpointDefinition) {
+	loginDir := fmt.Sprintf("/tmp/.runtime/logins/%s", userName)
+	removeLogoutUsers()
 	if AllRestEndpoint[userName] != nil && AllRestEndpoint[userName][routeId] != nil {
 		log.Println("handle logged in user", userName, "and route", routeId)
 		AllRestEndpoint[userName][routeId].ServeProxy(c)
@@ -333,31 +350,37 @@ func findRoute(host string) (found bool, foundedRoute *RouteMatch) {
 	return false, nil
 }
 
-func lookupUserIds(username string) (int, int) {
-	u, err := user.Lookup(username)
+func modifyAccessFile(r *http.Request, name string) {
+	filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/.access", name)
+	f, err := os.Create(filePath)
 	if err != nil {
-		log.Printf("Failed to lookup user %s: %v", username, err)
-		return -1, -1
+		log.Println("Failed to create file:", err)
+		loginUser(r, false)
+		return
+	} else {
+		f.Close()
 	}
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		log.Printf("Failed to parse UID for user %s: %v", username, err)
-		return -1, -1
+	_ = os.Chtimes(filePath, time.Now(), time.Now())
+}
+
+func createSecretFile(username string) {
+	cmd := exec.Command("pake", "store_secret.10", username)
+	log.Println("createSecretFile execute command and grab output")
+	if out, err := cmd.Output(); err != nil {
+		log.Println("error occurred ", err)
+		return
+	} else {
+		log.Println(string(out))
 	}
-	gid, err := strconv.Atoi(u.Gid)
-	if err != nil {
-		log.Printf("Failed to parse GID for user %s: %v", username, err)
-		return -1, -1
-	}
-	return uid, gid
+
 }
 
 func checkLocalStorage(r *http.Request, user *simple.JWTUser) {
-	filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/localstorage", user.Name)
+	filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/localstorage.synced", user.Name)
 	r.Header.Add(PROXY_USER_NAME, user.Name)
 	_, localstorageErr := os.Stat(filePath)
 	if _, err := r.Cookie(LOCALSTORAGE_COOKIE_NAME); err == nil && localstorageErr == nil {
-		user.HasEnv = true
+		user.HasSecret = true
 	}
 }
 
@@ -391,11 +414,11 @@ func readUser(r *http.Request, w http.ResponseWriter) (*simple.JWTUser, error) {
 		log.Println("virtual user create", r.URL.Path, virtualUserName)
 		r.Header.Add(PROXY_USER_NAME, virtualUserName)
 		return &simple.JWTUser{
-			HasEnv: true,
-			Host:   host,
-			Name:   virtualUserName,
-			Domain: virtualUserName,
-			Email:  virtualUserName,
+			HasSecret: true,
+			Host:      host,
+			Name:      virtualUserName,
+			Domain:    virtualUserName,
+			Email:     virtualUserName,
 		}, nil
 	}
 
@@ -445,8 +468,8 @@ func main() {
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.SimpleAuthTemplatePath, Config.LocalstorageTemplatePath)
 	r.NoRoute(func(c *gin.Context) {
-		log.Println("Handle host", c.Request.Host, "and path", c.Request.URL.Path, "with header", c.Request.Header["Sec-Fetch-Dest"])
-		// c.Header("Content-Type", c.Request.Header.Get("Sec-Fetch-Dest"))
+		log.Println("Handle host", c.Request.Host, "and path", c.Request.URL.Path)
+
 		if strings.Contains(c.Request.URL.Path, ".js") {
 			c.Header("Content-Type", "application/javascript")
 		}
@@ -496,8 +519,9 @@ func main() {
 				}
 			}
 		} else {
+			modifyAccessFile(c.Request, user.Name)
 			// load localstorage page
-			if !user.HasEnv {
+			if !user.HasSecret {
 				if c.Request.URL.Path == "/remote-dev-localstorage-loader" {
 					var req UserEnv
 					if err := c.ShouldBindJSON(&req); err != nil {
@@ -507,15 +531,13 @@ func main() {
 					}
 					log.Println("localstorageCookie is", req.Storage)
 					createCookie(c.Request, c.Writer, LOCALSTORAGE_COOKIE_NAME, "synced")
-					loginUser(c.Request, false)
 
 					filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/localstorage", user.Name)
 					if err := os.WriteFile(filePath, []byte(req.Storage), 0600); err != nil {
 						log.Println("Failed to write localstorage file:", err)
 					} else {
-						// set file owner to the user if needed (requires root privileges)
-						uid, gid := lookupUserIds(user.Name)
-						os.Chown(filePath, uid, gid)
+						log.Println("have to set storage into secret store for", user.Name)
+						createSecretFile(user.Name)
 					}
 					c.JSON(200,
 						gin.H{
