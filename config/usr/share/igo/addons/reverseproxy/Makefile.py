@@ -4,6 +4,7 @@ import subprocess
 
 PODMAN_COMMAND = ["podman", "machine", "inspect", "--format", "{{.SSHConfig.Port}}"]
 DEV_CONT_HOST_UID = os.getenv("DEV_CONT_HOST_UID", "1")
+DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", "")
 UID = os.getuid()
 
 PODMAN_REMOTE = f"-v r_dev_shared_runtime:/tmp/.runtime \
@@ -18,7 +19,7 @@ def podman(developer="demo"):
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
             -v r_dev_shared_vol:/var/lib/shared-containers\
-            {PODMAN_REMOTE}\
+            {PODMAN_REMOTE} {DEV_CONT_REMOTE_OPTS}\
             localhost/local-remote-dev-env:latest\
         ".split(" ")
     return [arg for arg in p if arg]
