@@ -8,13 +8,8 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 # collect user data
-folder_path = sys.argv[1]
-user = folder_path.split("/")[-1]
-
-# check user exist
-if os.path.exists(folder_path):
-    print("Current user path exist!")
-    sys.exit(1)
+folder_path = "/run/secrets/runtime" 
+user = sys.argv[1].split("/")[-1]
 
 # create default
 GLOBAL_PORT_START = 9000

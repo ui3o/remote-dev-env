@@ -12,12 +12,18 @@ const (
 )
 
 type JWTUser struct {
+	IsValid   bool   `json:"valid"`
 	HasSecret bool   `json:"secret"`
 	Host      string `json:"host"`
 	Domain    string `json:"domain"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+func (c JWTUser) ToString() string {
+	return fmt.Sprintf("[valid:(%t), secret:(%t), host:(%s), domain:(%s), name:(%s), email:(%s)]",
+		c.IsValid, c.HasSecret, c.Host, c.Domain, c.Name, c.Email)
 }
 
 func Encode(c JWTUser) (string, error) {

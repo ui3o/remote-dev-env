@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -22,7 +23,7 @@ var (
 func init() {
 	flag.CommandLine.Init("env_param_runningreporter", flag.ExitOnError)
 
-	flag.IntVar(&Config.Interval, "interval", 1, "default is 1s")
+	flag.IntVar(&Config.Interval, "interval", 150, "default is 150ms")
 
 	flag.Parse()
 	flagconf.ParseEnv()
@@ -36,31 +37,41 @@ func init() {
 
 }
 
+func reportRunning() {
+	username := os.Getenv("DEVELOPER")
+	if username == "" {
+		username = "unknown"
+	}
+	dirPath := filepath.Join("/tmp/.runtime/logins", username)
+	filePath := filepath.Join(dirPath, ".running")
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		if err := os.MkdirAll(dirPath, 0755); err == nil {
+			f, err := os.Create(filePath)
+			if err == nil {
+				log.Println("Created file to:", filePath)
+				f.Close()
+				cmd := exec.Command("cp", "-rf", "/run/secrets/runtime/.", dirPath)
+				if out, err := cmd.Output(); err != nil {
+					log.Println("cp has error:", err)
+					return
+				} else {
+					log.Println("cp out:", string(out))
+				}
+			} else {
+				log.Println("Error creating file:", err)
+			}
+		} else {
+			log.Println("Error creating directory:", err)
+		}
+	}
+}
+
 func main() {
 	go func() {
 		for {
-			username := os.Getenv("DEVELOPER")
-			if username == "" {
-				username = "unknown"
-			}
-			dirPath := filepath.Join("/tmp/.runtime/logins", username)
-			filePath := filepath.Join(dirPath, ".running")
-
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				if err := os.MkdirAll(dirPath, 0755); err == nil {
-					f, err := os.Create(filePath)
-					if err == nil {
-						log.Println("Created file to:", filePath)
-
-						f.Close()
-					} else {
-						log.Println("Error creating file:", err)
-					}
-				} else {
-					log.Println("Error creating directory:", err)
-				}
-			}
-			time.Sleep(time.Duration(Config.Interval) * time.Second)
+			reportRunning()
+			time.Sleep(time.Duration(Config.Interval) * time.Millisecond)
 		}
 	}()
 	select {}

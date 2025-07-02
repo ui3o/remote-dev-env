@@ -17,7 +17,7 @@ mount --make-rshared /
 
 # set DEVELOPER podman run 
 
-mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins
+mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
 echo root:10000:5000 >/etc/subgid
 
@@ -27,6 +27,8 @@ if [[ "${DEV_CONT_MODE_REVERSEPROXY_ONLY:-false}" == "true" ]]; then
 else
     rm -rf /tmp/.runtime/logins/$DEVELOPER
     python3 /etc/units/user_login_lock_create.py /tmp/.runtime/logins/$DEVELOPER
+    mkdir -p /tmp/.runtime/logins/$DEVELOPER
+    cp -rf /run/secrets/runtime/. /tmp/.runtime/logins/$DEVELOPER
     ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
 fi
 
