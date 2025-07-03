@@ -9,7 +9,8 @@ UID=$(shell id -u)
 PODMAN_REMOTE=-v /run/user/$(UID)/podman/podman.sock:/run/podman/podman.sock:ro \
 		-e DOCKER_HOST=unix:///run/podman/podman.sock \
 		-v r_dev_shared_vol:/var/lib/shared-containers \
-		-v r_dev_shared_runtime:/tmp/.runtime
+		-v r_dev_shared_runtime:/tmp/.runtime \
+		localhost/local-remote-dev-env:latest
 
 # -v /tmp/.runtime:/tmp/.runtime \
 # run target for Local Remote Dev Environment
@@ -21,8 +22,7 @@ run:
 		-e DEV_CONT_MODE_REVERSEPROXY_ONLY=true \
 		-e ENV_PARAM_REVERSEPROXY_PORT=10111 \
 		--mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro \
-		$(PODMAN_REMOTE) \
-		localhost/local-remote-dev-env:latest
+		$(PODMAN_REMOTE)
 
 # build target for Local Remote Dev Environment
 build:

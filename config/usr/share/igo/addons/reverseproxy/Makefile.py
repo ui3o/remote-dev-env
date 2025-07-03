@@ -5,7 +5,8 @@ import subprocess
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro \
         -v r_dev_shared_vol:/var/lib/shared-containers \
-        -e DOCKER_HOST=unix:///run/podman/podman.sock"
+        -e DOCKER_HOST=unix:///run/podman/podman.sock \
+        localhost/local-remote-dev-env:latest"
 DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 
 def podman(developer="demo"):
@@ -15,7 +16,6 @@ def podman(developer="demo"):
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
             {DEV_CONT_REMOTE_OPTS}\
-            localhost/local-remote-dev-env:latest\
         ".split(" ")
     return [arg for arg in p if arg]
 
