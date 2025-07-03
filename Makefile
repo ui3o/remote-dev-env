@@ -6,21 +6,22 @@ UID=$(shell id -u)
 # on MACOS you can mount podman socket
 # # -e DOCKER_HOST=ssh://core@host.containers.intenal:50533/run/user/501/podman/podman.sock
 
-PODMAN_REMOTE=-v /run/user/$(UID)/podman/podman.sock:/run/podman/podman.sock:ro -e DOCKER_HOST=unix:///run/podman/podman.sock
+PODMAN_REMOTE=-v /run/user/$(UID)/podman/podman.sock:/run/podman/podman.sock:ro \
+		-e DOCKER_HOST=unix:///run/podman/podman.sock \
+		-v r_dev_shared_vol:/var/lib/shared-containers \
+		-v r_dev_shared_runtime:/tmp/.runtime
 
 # -v /tmp/.runtime:/tmp/.runtime \
 # run target for Local Remote Dev Environment
 run:
-	podman run --rm --network host --name rdev -e DEVELOPER=reverse_proxy\
-		-e DEV_CONT_HOST_UID=$(UID) \
+	podman run -it --rm --privileged --name rdev --network host \
+		-e DEVELOPER=reverse_proxy\
+		-e DEV_CONT_REMOTE_OPTS="$(PODMAN_REMOTE)" \
 		-e ENV_PARAM_REVERSEPROXY_REPLACE_SUBDOMAIN_TO_COOKIE="true" \
 		-e DEV_CONT_MODE_REVERSEPROXY_ONLY=true \
 		-e ENV_PARAM_REVERSEPROXY_PORT=10111 \
 		--mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro \
-		-v r_dev_shared_vol:/var/lib/shared-containers \
-		-v r_dev_shared_runtime:/tmp/.runtime \
 		$(PODMAN_REMOTE) \
-		-it --privileged \
 		localhost/local-remote-dev-env:latest
 
 # build target for Local Remote Dev Environment

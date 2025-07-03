@@ -2,33 +2,31 @@ import logging
 import os
 import subprocess
 
-PODMAN_COMMAND = ["podman", "machine", "inspect", "--format", "{{.SSHConfig.Port}}"]
-DEV_CONT_HOST_UID = os.getenv("DEV_CONT_HOST_UID", "1")
-DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", "")
-UID = os.getuid()
-
-PODMAN_REMOTE = f"-v r_dev_shared_runtime:/tmp/.runtime \
-        -v /run/user/{DEV_CONT_HOST_UID}/podman/podman.sock:/run/podman/podman.sock:ro \
+PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
+        -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro \
+        -v r_dev_shared_vol:/var/lib/shared-containers \
         -e DOCKER_HOST=unix:///run/podman/podman.sock"
-
+DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 
 def podman(developer="demo"):
     p = f"\
-        podman --remote run -d --rm --name rdev-{developer} --network host --privileged\
+        podman --remote run -d --rm --privileged --name rdev-{developer} --network host\
             -e DEVELOPER={developer}\
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
-            -v r_dev_shared_vol:/var/lib/shared-containers\
-            {PODMAN_REMOTE} {DEV_CONT_REMOTE_OPTS}\
+            {DEV_CONT_REMOTE_OPTS}\
             localhost/local-remote-dev-env:latest\
         ".split(" ")
     return [arg for arg in p if arg]
 
 
 def secretMove(developer="demo"):
-    p = [*f"\
+    p = [
+        *f"\
         podman --remote exec -it rdev-{developer} bash -c \
-        ".split(" "), f"mv /tmp/.runtime/logins/{developer}/localstorage /run/secrets/localstorage && touch /tmp/.runtime/logins/{developer}/localstorage.synced"]
+        ".split(" "),
+        f"mv /tmp/.runtime/logins/{developer}/localstorage /run/secrets/localstorage && touch /tmp/.runtime/logins/{developer}/localstorage.synced",
+    ]
     return [arg for arg in p if arg]
 
 
