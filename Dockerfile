@@ -107,8 +107,6 @@ WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
 RUN GOOS=linux go build -o reverseproxy.start .
-WORKDIR /usr/share/igo/addons/runningreporter
-RUN GOOS=linux go build -o runningreporter.start .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release

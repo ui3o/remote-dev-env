@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.getcwd())
 sys.dont_write_bytecode = True
 import Makefile
-
+# todo comma separated list
 callables = []
 
 
@@ -21,6 +21,7 @@ class FixedLevelFormatter(logging.Formatter):
 
 handler = logging.StreamHandler()
 handler.setFormatter(FixedLevelFormatter("[%(asctime)s] [%(levelname)s] %(message)s"))
+handler.stream = sys.stdout
 logging.getLogger().handlers = [handler]
 logging.getLogger().setLevel(logging.DEBUG)
 

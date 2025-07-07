@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import gen_user_lock
 
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro \
@@ -9,14 +10,25 @@ PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         localhost/local-remote-dev-env:latest"
 DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 
-def podman(developer="demo"):
+
+def podmanStart(developer="demo", portLock: int = 9000):
+    # todo list all portRSH, portCODE
     p = f"\
         podman --remote run -d --rm --privileged --name rdev-{developer} --network host\
+            --label portLock={portLock}\
             -e DEVELOPER={developer}\
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
+            {gen_user_lock.createLabelList(developer, portLock)}\
             {DEV_CONT_REMOTE_OPTS}\
         ".split(" ")
+    return [arg for arg in p if arg]
+
+
+def podmanCheckRun(developer="demo"):
+    p = f"podman --remote container --filter=name=rdev-{developer} --format {{.Names}}".split(
+        " "
+    )
     return [arg for arg in p if arg]
 
 
@@ -30,13 +42,78 @@ def secretMove(developer="demo"):
     return [arg for arg in p if arg]
 
 
+def portLocksList():
+    p = [
+        *"\
+        podman --remote ps --filter=name=rdev-.* --format {{.Labels.portLock}}\
+        ".split(" ")
+    ]
+    return [arg for arg in p if arg]
+
+
+def runningContainerList():
+    p = [
+        *"\
+        podman --remote ps --filter=name=rdev-.* --format {{.Labels.DEVELOPEREnv}}\
+        ".split(" ")
+    ]
+    return [arg for arg in p if arg]
+
+
+def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
+    p = [
+        *(
+            "\
+        podman --remote ps --filter=name=rdev-"
+            + developer
+            + " --format {{.Labels.port"
+            + portRouteNameId
+            + "Env}}"
+            + "\
+        "
+        ).split(" ")
+    ]
+    return [arg for arg in p if arg]
+
+
+def podmanWatchLogs(developer="demo"):
+    p = [*(f"podman --remote logs -f rdev-{developer}").split(" ")]
+    return [arg for arg in p if arg]
+
+
+def calculateLockNum() -> int:
+    out = subprocess.run(portLocksList(), capture_output=True)
+    result = out.stdout.decode().split("\n")
+    result = [arg for arg in result if arg]
+    r = list(range(11100, 14000 + 1, 100))
+    # remove item from r where result is the same
+    r = [port for port in r if str(port) not in result]
+    print(r)
+    if len(r):
+        return r[0]
+    return 0
+
+
 # this is a start function
 def start(developer: str = "demo"):
-    logging.info(podman(developer))
-    subprocess.run(podman(developer))
+    # todo set lock and all ports
+    portLock: int = calculateLockNum()
+    if portLock:
+        logging.info(podmanStart(developer, portLock))
+        subprocess.run(podmanStart(developer, portLock))
 
 
-# move secret to /run/secret
-def store_secret(developer: str = "demo"):
-    logging.info(secretMove(developer))
-    subprocess.run(secretMove(developer))
+# this function checks if the container is running and exit if not
+def listenContainerRunning(developer: str = "demo"):
+    logging.info(podmanWatchLogs(developer))
+    subprocess.run(podmanWatchLogs(developer))
+
+
+# this function returns Port number for RouteNameID
+def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):
+    out = subprocess.run(
+        portForRouteID(developer, portRouteNameId), capture_output=True
+    )
+    result = out.stdout.decode().strip()
+    print(result, end="")
+

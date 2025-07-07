@@ -1,6 +1,5 @@
 # If you come from bash you might have to change your $PATH.
 # source /etc/environment
-export DEVELOPER="___USER___"
 export USER="root"
 export HOME="/root"
 export PATH="$HOME/.local/bin:$HOME/npm/bin:$PATH"
