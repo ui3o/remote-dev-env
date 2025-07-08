@@ -5,17 +5,17 @@ import re
 # create default
 GLOBAL_PORT_START = 9000
 USER_PORT_START = 11000
-MAX_PORT_COUNTER = 20
-DEDICATED_LOCAL_NAMES = [
-    "RSH",
-    "CODE",
-    *[f"LPR{i}" for i in range(1, MAX_PORT_COUNTER + 1)],
-]
-DEDICATED_GLOBAL_NAMES = [
-    "GRAFANA",
-    "KIBANA",
-    *[f"GPR{i}" for i in range(1, MAX_PORT_COUNTER + 1)],
-]
+# get the max port counter from environment variable or use default
+
+LOCAL_GLOBAL_PORT_LIST = os.getenv(
+    "ENV_PARAM_REVERSEPROXY_LOCAL_GLOBAL_PORT_LIST",
+    "ADMIN,CODE,RSH,LOCAL1,LOCAL2;GRAFANA,GLOBAL1,GLOBAL2",
+).split(";")
+
+DEDICATED_LOCAL_NAMES = LOCAL_GLOBAL_PORT_LIST[0].split(",")
+DEDICATED_LOCAL_NAMES = [arg.strip() for arg in DEDICATED_LOCAL_NAMES if arg]
+DEDICATED_GLOBAL_NAMES = LOCAL_GLOBAL_PORT_LIST[1].split(",")
+DEDICATED_GLOBAL_NAMES = [arg.strip() for arg in DEDICATED_GLOBAL_NAMES if arg]
 
 
 # recursively find file name in a specific folder and file name has to be regex match

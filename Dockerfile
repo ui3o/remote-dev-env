@@ -107,12 +107,13 @@ WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
 RUN GOOS=linux go build -o reverseproxy.start .
+WORKDIR /usr/share/igo/addons/admin
+RUN GOOS=linux go build -o admin.start .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release
 ENV ENV_PARAM_REVERSEPROXY_SERVER_CERT=/usr/share/igo/addons/reverseproxy/example_cert/example_server_cert.pem
 ENV ENV_PARAM_REVERSEPROXY_SERVER_KEY=/usr/share/igo/addons/reverseproxy/example_cert/example_server_key.pem
-ENV ENV_PARAM_REVERSEPROXY_SIMPLE_AUTH_TEMPLATE_PATH=/usr/share/igo/addons/reverseproxy/simple/auth.html
-ENV ENV_PARAM_REVERSEPROXY_LOCALSTORAGE_TEMPLATE_PATH=/usr/share/igo/addons/reverseproxy/localstorage/localstorage.html
+ENV ENV_PARAM_REVERSEPROXY_TEMPLATE_ROOT_PATH=/usr/share/igo/addons/reverseproxy/
 
 ENTRYPOINT [ "/etc/entrypoint.sh" ]

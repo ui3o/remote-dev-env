@@ -33,4 +33,10 @@ if [[ "${DEV_CONT_MODE_NO_REVERSEPROXY:-false}" == "true" ]]; then
     mv /usr/share/igo/addons/reverseproxy/reverseproxy.start /usr/share/igo/addons/reverseproxy/reverseproxy.disabled
 fi
 
+# check DEV_CONT_MODE_NO_ADMIN
+if [[ "${DEV_CONT_MODE_NO_ADMIN:-false}" == "true" ]]; then
+    echo "DEV_CONT_MODE_NO_ADMIN is set, skipping reverse proxy setup"
+    mv /usr/share/igo/addons/admin/admin.start /usr/share/igo/addons/admin/admin.disabled
+fi
+
 exec /usr/share/igo/igo/igo $@

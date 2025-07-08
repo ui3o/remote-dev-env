@@ -11,8 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/ui3o/remote-dev-env/igo-reverseproxy/saml"
-	"github.com/ui3o/remote-dev-env/igo-reverseproxy/simple"
+	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
+	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
 )
 
 const (
@@ -30,6 +30,7 @@ type RuntimeConfig struct {
 	CertFile                 string
 	KeyFile                  string
 	TemplateRootPath         string
+	LocalGlobalPortList      string
 	ReplaceSubdomainToCookie bool
 	UseSAMLAuth              bool
 	SAML                     *saml.SAMLConfig
@@ -53,11 +54,11 @@ type availableRemote struct {
 	all     map[string]bool
 }
 
-func (p *RestEndpointDefinition) serveHTTPRequest(target string, c *gin.Context) {
+func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target string, c *gin.Context) {
 	// Create the new request to the backend
 	req, err := http.NewRequest(c.Request.Method, "http://"+target+c.Request.RequestURI, c.Request.Body)
 	if err != nil {
-		if !p.tryNextProxyBackend(false, c) {
+		if !p.tryNextProxyBackend(user, false, c) {
 			c.String(http.StatusInternalServerError, "Failed to create request: %v", err)
 		}
 		return
@@ -68,7 +69,7 @@ func (p *RestEndpointDefinition) serveHTTPRequest(target string, c *gin.Context)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		if !p.tryNextProxyBackend(false, c) {
+		if !p.tryNextProxyBackend(user, false, c) {
 			c.String(http.StatusBadGateway, "Failed to reach backend: %v", err)
 		}
 		return
@@ -84,6 +85,37 @@ func (p *RestEndpointDefinition) serveHTTPRequest(target string, c *gin.Context)
 	c.Status(resp.StatusCode)
 
 	// Copy body
+	accept := c.Request.Header.Get("Accept")
+
+	if strings.Contains(accept, "text/html") {
+		log.Println(debugHeader(user.Name), "start to replace response body")
+
+		if bodyBytes, err := io.ReadAll(resp.Body); err != nil {
+			log.Println(debugHeader(user.Name), "Failed to read response body: %v", err)
+		} else {
+			// Enable CORS for the injected script
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "*")
+			scheme := "http"
+			if c.Request.TLS != nil {
+				scheme = "https"
+			}
+			// Replace first subdomain with "admin"
+			hostParts := strings.SplitN(user.Host, ".", 2)
+			adminHost := "admin"
+			if len(hostParts) == 2 {
+				adminHost = "admin." + hostParts[1]
+			}
+			src := scheme + "://" + adminHost + "/static/inject.js"
+			log.Println(debugHeader(user.Name), "add this path to script:", src)
+
+			bodyStr := string(bodyBytes)
+			bodyStr = strings.Replace(bodyStr, "</body>", `<script src="`+src+`"></script></body>`, 1)
+			c.Writer.Write([]byte(bodyStr))
+			return
+		}
+	}
 	io.Copy(c.Writer, resp.Body)
 }
 
@@ -149,7 +181,7 @@ func (p *RestEndpointDefinition) serveWebsocket(remoteUrl string, c *gin.Context
 	<-errCh
 }
 
-func (p *RestEndpointDefinition) tryNextProxyBackend(currentState bool, c *gin.Context) bool {
+func (p *RestEndpointDefinition) tryNextProxyBackend(user *simple.JWTUser, currentState bool, c *gin.Context) bool {
 	ar := c.MustGet(availableRemoteId).(*availableRemote)
 	pHandlerCall := c.MustGet(preHandlerCalled).(bool)
 	ar.all[ar.current] = currentState
@@ -175,7 +207,7 @@ func (p *RestEndpointDefinition) tryNextProxyBackend(currentState bool, c *gin.C
 				strings.ToLower(c.Request.Header.Get("Upgrade")) == "websocket" {
 				p.serveWebsocket(k, c)
 			} else {
-				p.serveHTTPRequest(p.Remotes[k].Host, c)
+				p.serveHTTPRequest(user, p.Remotes[k].Host, c)
 			}
 			return true
 		} else {
@@ -199,7 +231,7 @@ func (p *RestEndpointDefinition) Register() {
 	}
 }
 
-func (p *RestEndpointDefinition) StartServeProxy(c *gin.Context) {
+func (p *RestEndpointDefinition) StartServeProxy(user *simple.JWTUser, c *gin.Context) {
 	ar := availableRemote{all: make(map[string]bool)}
 	index := 0
 	for k := range p.Remotes {
@@ -212,13 +244,13 @@ func (p *RestEndpointDefinition) StartServeProxy(c *gin.Context) {
 
 	c.Set(availableRemoteId, &ar)
 	c.Set(preHandlerCalled, false)
-	p.tryNextProxyBackend(true, c)
+	p.tryNextProxyBackend(user, true, c)
 }
 
 func HandleRequest(user *simple.JWTUser, c *gin.Context) {
 	checkUserRouteId(c)
 	log.Println(debugHeader(user.Name), "handle logged in user and route", user.RouteId)
-	AllRestEndpoint[user.Name].Endpoints[user.RouteId].StartServeProxy(c)
+	AllRestEndpoint[user.Name].Endpoints[user.RouteId].StartServeProxy(user, c)
 }
 
 func createCookie(c *gin.Context, user *simple.JWTUser, cookieName, cookieData string) {

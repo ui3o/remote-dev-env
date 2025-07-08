@@ -13,8 +13,8 @@ import (
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/ui3o/remote-dev-env/igo-reverseproxy/saml"
-	"github.com/ui3o/remote-dev-env/igo-reverseproxy/simple"
+	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
+	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
 	"go.senan.xyz/flagconf"
 )
 
@@ -41,9 +41,6 @@ func debugHeader(username string) string {
 	return fmt.Sprintf("[%s] ", username)
 }
 
-// todo el lehet erni a masik container secret-jet
-// todo nem jo a localstorage koncepcio
-
 func init() {
 	flag.CommandLine.Init("env_param_reverseproxy", flag.ExitOnError)
 
@@ -53,6 +50,7 @@ func init() {
 	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
 	flag.IntVar(&Config.CookieAge, "age", 3600, "cookie age in sec")
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
+	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2;GRAFANA,GLOBAL1,GLOBAL2", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,...;GRAFANA,PROMETHEUS,LOKI,...")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
 
@@ -94,11 +92,21 @@ func init() {
 }
 
 func main() {
-	AllRoutesRegexp["CODE"] = &RouteMatch{Regex: regexp.MustCompile(`^code.`), Id: "CODE",
-		PreHandler: func(ep *RestEndpointDefinition, c *gin.Context) {
-			// w.Header().Add("foo", "bar")
-		}}
-	AllRoutesRegexp["RSH"] = &RouteMatch{Regex: regexp.MustCompile(`^rsh.`), Id: "RSH"}
+	Config.LocalGlobalPortList = strings.TrimSpace(Config.LocalGlobalPortList)
+	parts := strings.Split(Config.LocalGlobalPortList, ";")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if len(part) != 0 {
+			ports := strings.Split(part, ",")
+			for _, port := range ports {
+				port = strings.TrimSpace(port)
+				AllRoutesRegexp[port] = &RouteMatch{
+					Regex: regexp.MustCompile(`^` + strings.ToLower(port) + `.`),
+					Id:    port,
+				}
+			}
+		}
+	}
 
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.TemplateRootPath+"simple/auth.html",
@@ -163,26 +171,13 @@ func main() {
 			}
 		} else {
 			modifyAccessFile(c, user.Name)
-			// load localstorage page
-			switch c.Request.URL.Path {
-			case "/mysecretstore":
-				log.Println(debugHeader(user.Name), "load mysecretstore.html")
-				c.HTML(200, "mysecretstore.html", gin.H{
-					"cookie": DOMAIN_COOKIE_NAME,
-				})
-			case "/mysecretstore.sw.js":
-				log.Println(debugHeader(user.Name), "load mysecretstore.sw.js")
-				c.Header("Content-Type", "application/javascript")
-				c.HTML(200, "mysecretstore.sw.js", gin.H{})
-			default:
-				log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
-				if len(user.RouteId) > 0 {
-					log.Println(debugHeader(user.Name), "findRoute has found a route")
-					HandleRequest(user, c)
-				} else {
-					log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
-					return
-				}
+			log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
+			if len(user.RouteId) > 0 {
+				log.Println(debugHeader(user.Name), "findRoute has found a route")
+				HandleRequest(user, c)
+			} else {
+				log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
+				return
 			}
 		}
 	})

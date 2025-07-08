@@ -1,0 +1,62 @@
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"go.senan.xyz/flagconf"
+)
+
+var (
+	Config = RuntimeConfig{}
+)
+
+func debugHeader(username string) string {
+	return fmt.Sprintf("[%s] ", username)
+}
+
+func init() {
+	flag.CommandLine.Init("env_param_reverseproxy", flag.ExitOnError)
+
+	flag.IntVar(&Config.Port, "port", 10113, "Port(10113)")
+	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
+
+	flag.Parse()
+	flagconf.ParseEnv()
+
+	confJson, err := json.MarshalIndent(Config, "", "  ")
+	if err != nil {
+		log.Println("[INIT] Failed to marshal config to JSON:", err)
+	} else {
+		log.Println("[INIT] RuntimeConfig JSON:", string(confJson))
+	}
+	log.Println("[INIT] TemplateRootPath", Config.TemplateRootPath)
+}
+
+func main() {
+	r := gin.Default()
+	r.LoadHTMLFiles(Config.TemplateRootPath+"static/admin.html",
+		Config.TemplateRootPath+"static/admin.js")
+	r.NoRoute(func(c *gin.Context) {
+		log.Println("[REQ_START] Handle request => |", c.Request.Host, "|", c.Request.URL.Path)
+		switch c.Request.URL.Path {
+		case "/admin.html":
+			log.Println("load admin.html")
+			c.HTML(200, "admin.html", gin.H{
+				"template_str": "This is template string!",
+			})
+		case "/admin.js":
+			log.Println("load admin.js")
+			c.Header("Content-Type", "application/javascript")
+			c.HTML(200, "admin.js", gin.H{})
+		default:
+			log.Println("[ERROR] Not possible to handle this request:", c.Request.URL.Path)
+
+		}
+	})
+	log.Println("[BOOT] Gin start in http mode")
+	r.Run(fmt.Sprintf(":%d", Config.Port))
+}
