@@ -110,9 +110,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	r.LoadHTMLFiles(Config.TemplateRootPath+"simple/auth.html",
-		Config.TemplateRootPath+"secretstore/mysecretstore.html",
-		Config.TemplateRootPath+"secretstore/mysecretstore.sw.js")
+	r.LoadHTMLFiles(Config.TemplateRootPath + "simple/auth.html")
 	r.NoRoute(func(c *gin.Context) {
 		accept := c.Request.Header.Get("Accept")
 		documentRequest := false

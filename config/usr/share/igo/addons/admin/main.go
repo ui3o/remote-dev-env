@@ -21,7 +21,7 @@ func debugHeader(username string) string {
 }
 
 func init() {
-	flag.CommandLine.Init("env_param_reverseproxy", flag.ExitOnError)
+	flag.CommandLine.Init("env_param_admin_addon", flag.ExitOnError)
 
 	flag.IntVar(&Config.Port, "port", 10113, "Port(10113)")
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
