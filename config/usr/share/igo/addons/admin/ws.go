@@ -31,7 +31,7 @@ func serveWebsocket(remoteUrl string, c *gin.Context) {
 			defer clientConn.Close()
 
 			log.Println("WebSocket proxy connected")
-			proxyCopy := func(src *websocket.Conn, errCh chan error) {
+			startListen := func(src *websocket.Conn, errCh chan error) {
 				for {
 					msgType, msg, err := src.ReadMessage()
 					if err != nil {
@@ -48,7 +48,7 @@ func serveWebsocket(remoteUrl string, c *gin.Context) {
 			}
 			// Proxy messages in both directions
 			errCh := make(chan error, 2)
-			go proxyCopy(clientConn, errCh)
+			go startListen(clientConn, errCh)
 			<-errCh
 		}
 	}

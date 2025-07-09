@@ -52,12 +52,12 @@ func main() {
 	r.NoRoute(func(c *gin.Context) {
 		log.Println("[REQ_START] Handle request => |", c.Request.Host, "|", c.Request.URL.Path)
 		switch c.Request.URL.Path {
-		case "/admin.html":
+		case "/static/admin.html":
 			log.Println("load admin.html")
 			c.HTML(200, "admin.html", gin.H{
 				"template_str": "This is template string!",
 			})
-		case "/admin.js":
+		case "/static/admin.js":
 			log.Println("load admin.js")
 			c.Header("Content-Type", "application/javascript")
 			c.HTML(200, "admin.js", gin.H{})
