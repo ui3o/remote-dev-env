@@ -108,7 +108,7 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 			if len(hostParts) == 2 {
 				adminHost = "admin." + hostParts[1]
 			}
-			src := scheme + "://" + adminHost + "/static/inject.js"
+			src := scheme + "://" + adminHost + "/static/admin.js"
 			log.Println(debugHeader(user.Name), "add this path to script:", src)
 
 			bodyStr := string(bodyBytes)
