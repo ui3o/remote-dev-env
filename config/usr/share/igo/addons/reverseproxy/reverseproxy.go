@@ -30,6 +30,7 @@ type RuntimeConfig struct {
 	CertFile                 string
 	KeyFile                  string
 	TemplateRootPath         string
+	HomeFolderPath           string
 	LocalGlobalPortList      string
 	ReplaceSubdomainToCookie bool
 	UseSAMLAuth              bool

@@ -51,6 +51,7 @@ func init() {
 	flag.IntVar(&Config.CookieAge, "age", 3600, "cookie age in sec")
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
 	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2;GRAFANA,GLOBAL1,GLOBAL2", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,...;GRAFANA,PROMETHEUS,LOKI,...")
+	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
 

@@ -69,6 +69,9 @@ func checkUserRouteId(c *gin.Context) {
 	userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
 	routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
 	if AllRestEndpoint[userName] == nil || AllRestEndpoint[userName].Endpoints[routeId] == nil {
+		if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
+			log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
+		}
 		runCmd(userName, "pake", "start.10", userName)
 		if out, err := runCmd(userName, "pake", "getPortForRouteID.20", userName, routeId); err == nil {
 			checkPortIsOpened(userName, out)
