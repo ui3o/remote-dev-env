@@ -10,6 +10,8 @@ PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         localhost/local-remote-dev-env:latest"
 DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 
+HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
+
 
 def podmanStart(developer="demo", portLock: int = 9000):
     # todo list all portRSH, portCODE
@@ -19,6 +21,7 @@ def podmanStart(developer="demo", portLock: int = 9000):
             -e DEVELOPER={developer}\
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
+            -v {HOME_FOLDER_PATH}{developer}:/root:Z \
             {gen_user_lock.createLabelList(developer, portLock)}\
             {DEV_CONT_REMOTE_OPTS}\
         ".split(" ")

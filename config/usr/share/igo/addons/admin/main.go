@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.senan.xyz/flagconf"
@@ -23,6 +25,13 @@ func init() {
 
 	flag.IntVar(&Config.Port, "port", 10113, "Port(10113)")
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
+	if value, ok := os.LookupEnv("PORT_ADMIN"); ok {
+		if portInt, err := strconv.Atoi(value); err == nil {
+			Config.Port = portInt
+		} else {
+			log.Printf("[INIT] Invalid PORT_ADMIN value: %v\n", err)
+		}
+	}
 
 	flag.Parse()
 	flagconf.ParseEnv()
