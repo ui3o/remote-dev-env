@@ -98,7 +98,16 @@ def start(developer: str = "demo"):
 
 # this is a start function
 def removeIdleUsers(idleTime: int = 1):
-    for user in runningContainerList():
+    out = subprocess.run(
+        runningContainerList(), capture_output=True
+    )
+    result = out.stdout.decode().strip()
+    if not result:
+        logging.info("No running containers found.")
+        return
+    result = result.split("\n")
+    for user in result:
+        logging.info("checking idle user: %s", user)
         user = user.strip()
         access_file = f"/tmp/.runtime/logins/{user}/.access"
         try:
