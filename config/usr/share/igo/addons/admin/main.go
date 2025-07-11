@@ -59,8 +59,8 @@ func main() {
 			if cookieName := os.Getenv("ENV_PARAM_REVERSEPROXY_COOKIE_NAME"); cookieName != "" {
 				if cookie, err := c.Cookie(cookieName); err == nil {
 					data := UserLoginData{
-						Cookie: cookie,
-						Domain: "ws://" + Config.DomainPath + "/ssh",
+						Cookie: cookieName + "=" + cookie,
+						Domain: Config.DomainPath + "/ssh",
 					}
 					c.JSON(http.StatusOK, data)
 				}
