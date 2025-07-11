@@ -19,8 +19,8 @@ mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
 echo root:10000:5000 >/etc/subgid
 
-git fetch --all >> /tmp/boot.log 2>&1 || true
-git merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
+git -C /root fetch --all >> /tmp/boot.log 2>&1 || true
+git -C /root merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
 
 # git merge --allow-unrelated-histories my_dotfiles/master
 # check DEV_CONT_MODE_DISABLE_UNITS
@@ -30,7 +30,7 @@ if [[ "${DEV_CONT_MODE_DISABLE_UNITS:-false}" == "true" ]]; then
 fi
 
 if [[ -n "${DEV_CONT_ENABLED_ADDONS_LIST:-}" ]]; then
-    IFS=',' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
+    IFS=';' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
     for addon in "${ADDONS[@]}"; do
         echo "Enable addon: $addon"
         mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start

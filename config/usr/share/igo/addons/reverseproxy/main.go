@@ -55,7 +55,7 @@ func init() {
 	flag.IntVar(&Config.UserIdleKillAfterTimeout, "user_idle_kill_after_timeout", 600, "default is 600 seconds")
 
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
-	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD;GRAFANA,GLOBAL1,GLOBAL2", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD,...;GRAFANA,PROMETHEUS,LOKI,...")
+	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD--GRAFANA;GLOBAL1;GLOBAL2", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD;...--GRAFANA;PROMETHEUS;LOKI;...")
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
@@ -101,7 +101,7 @@ func init() {
 
 func main() {
 	Config.LocalGlobalPortList = strings.TrimSpace(Config.LocalGlobalPortList)
-	parts := strings.Split(Config.LocalGlobalPortList, "|")
+	parts := strings.Split(Config.LocalGlobalPortList, "--")
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if len(part) != 0 {

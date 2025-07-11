@@ -64,6 +64,7 @@ ENV GOPROXY=https://proxy.golang.org,direct
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
 RUN go install honnef.co/go/tools/cmd/staticcheck@latest
 RUN go install golang.org/x/tools/gopls@latest
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 RUN . /arch;echo [$ARCH] install code-server extensions... && \
