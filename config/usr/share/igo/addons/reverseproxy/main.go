@@ -42,6 +42,14 @@ func debugHeader(username string) string {
 	return fmt.Sprintf("[%s] ", username)
 }
 
+func StringToArray(value string) []string {
+	s := strings.Split(value, ";")
+	for i := range s {
+		(s)[i] = strings.TrimSpace((s)[i])
+	}
+	return s
+}
+
 func init() {
 	flag.CommandLine.Init("env_param_reverseproxy", flag.ExitOnError)
 
@@ -55,8 +63,13 @@ func init() {
 	flag.IntVar(&Config.UserIdleKillAfterTimeout, "user_idle_kill_after_timeout", 600, "default is 600 seconds")
 
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
-	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD--GRAFANA;GLOBAL1;GLOBAL2", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD;...--GRAFANA;PROMETHEUS;LOKI;...")
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
+
+	var portList string
+	flag.StringVar(&portList, "local_port_list", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD;...")
+	Config.LocalPortList = StringToArray(portList)
+	flag.StringVar(&portList, "global_port_list", "GRAFANA;GLOBAL1;GLOBAL2", "GRAFANA;PROMETHEUS;LOKI;...")
+	Config.GlobalPortList = StringToArray(portList)
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
 
@@ -100,19 +113,12 @@ func init() {
 }
 
 func main() {
-	Config.LocalGlobalPortList = strings.TrimSpace(Config.LocalGlobalPortList)
-	parts := strings.Split(Config.LocalGlobalPortList, "--")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if len(part) != 0 {
-			ports := strings.Split(part, ";")
-			for _, port := range ports {
-				port = strings.TrimSpace(port)
-				AllRoutesRegexp[port] = &RouteMatch{
-					Regex: regexp.MustCompile(`^` + strings.ToLower(port) + `.`),
-					Id:    port,
-				}
-			}
+	ports := append(Config.LocalPortList, Config.GlobalPortList...)
+	for _, port := range ports {
+		port = strings.TrimSpace(port)
+		AllRoutesRegexp[port] = &RouteMatch{
+			Regex: regexp.MustCompile(`^` + strings.ToLower(port) + `.`),
+			Id:    port,
 		}
 	}
 

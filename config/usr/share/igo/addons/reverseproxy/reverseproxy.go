@@ -34,7 +34,8 @@ type RuntimeConfig struct {
 	KeyFile                  string
 	TemplateRootPath         string
 	HomeFolderPath           string
-	LocalGlobalPortList      string
+	LocalPortList            []string
+	GlobalPortList           []string
 	ReplaceSubdomainToCookie bool
 	UseSAMLAuth              bool
 	SAML                     *saml.SAMLConfig
@@ -128,7 +129,7 @@ func (p *RestEndpointDefinition) serveWebsocket(remoteUrl string, c *gin.Context
 	var err error
 	host := p.Remotes[remoteUrl].Host
 	reqHeader := http.Header{
-		"host": []string{host},
+		"Host": []string{host},
 	}
 	subProtocols := c.Request.Header.Get("sec-websocket-protocol")
 	if len(subProtocols) > 0 {
