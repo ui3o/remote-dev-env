@@ -10,7 +10,7 @@ EXPOSE 7681
 RUN dnf upgrade -y && dnf install -y dnf-plugins-core
 RUN dnf copr enable -y varlad/zellij && dnf copr enable -y totalfreak/lazygit
 RUN dnf install -y binutils rsync mandoc ncat \
-    openssh openssl ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
+    openssh sshd openssl ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
     telnet iputils
@@ -90,25 +90,30 @@ RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 ENV PATH="/root/.local/bin:/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
+WORKDIR /root
+RUN git init && git add . && git commit -m "init" && \
+    git remote add shared_dotfiles /shared/.dotfiles && \
+    git remote add my_dotfiles ~/ss/.dotfiles
+
 
 COPY ./config/etc/ /etc/
 COPY ./config/usr /usr
+RUN ln -s /etc/units /usr/share/igo/.runtime/units/system && \
+    ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
 
-RUN	groupadd -f igo && groupadd -f igodev && groupadd -f igorun
-RUN ln -s /etc/units /usr/share/igo/.runtime/units/system
-RUN chmod g+rws /usr/share/igo && chgrp -R igo /usr/share/igo && \
-    chmod g+rws /usr/share/igo/addons && chgrp -R igodev /usr/share/igo/addons && \
-    chmod g+rws /usr/share/igo/igo && chgrp -R igodev /usr/share/igo/igo && \
-    chmod g+rws /usr/share/igo/ictl && chgrp -R igodev /usr/share/igo/ictl && \
-    chgrp -R igorun /usr/share/igo/.runtime
-
+RUN ssh-keygen -A
+WORKDIR /usr/share/igo/issh
+RUN GOOS=windows GOARCH=amd64 go build -o bin/issh.exe . && \
+    GOOS=darwin  GOARCH=amd64 go build -o bin/issh-mac-intel . && \
+    GOOS=darwin  GOARCH=arm64 go build -o bin/issh-mac-arm . && \
+    GOOS=linux   GOARCH=amd64 go build -o bin/issh-linux 
 
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
-RUN GOOS=linux go build -o reverseproxy.start .
+RUN GOOS=linux go build -o reverseproxy.disabled .
 WORKDIR /usr/share/igo/addons/admin
-RUN GOOS=linux go build -o admin.start .
+RUN GOOS=linux go build -o admin.disabled .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release
@@ -116,4 +121,5 @@ ENV ENV_PARAM_REVERSEPROXY_SERVER_CERT=/usr/share/igo/addons/reverseproxy/exampl
 ENV ENV_PARAM_REVERSEPROXY_SERVER_KEY=/usr/share/igo/addons/reverseproxy/example_cert/example_server_key.pem
 ENV ENV_PARAM_REVERSEPROXY_TEMPLATE_ROOT_PATH=/usr/share/igo/addons/reverseproxy/
 
+RUN	groupadd -f igo
 ENTRYPOINT [ "/etc/entrypoint.sh" ]

@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	SAMLSP          *samlsp.Middleware
-	AllRestEndpoint = make(map[string]*AllRestEndpointDefinition)
-	AllRoutesRegexp = make(map[string]*RouteMatch)
-	Config          = RuntimeConfig{
+	SAMLSP            *samlsp.Middleware
+	CreateUserChannel = make(chan *gin.Context)
+	AllRestEndpoint   = make(map[string]*AllRestEndpointDefinition)
+	AllRoutesRegexp   = make(map[string]*RouteMatch)
+	Config            = RuntimeConfig{
 		SAML: &saml.SAMLConf,
 	}
 )
@@ -49,8 +50,12 @@ func init() {
 
 	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
 	flag.IntVar(&Config.CookieAge, "age", 3600, "cookie age in sec")
+
+	flag.IntVar(&Config.UserIdleCheckInterVal, "user_idle_check_interval", 1, "default is 1 minutes")
+	flag.IntVar(&Config.UserIdleKillAfterTimeout, "user_idle_kill_after_timeout", 600, "default is 600 seconds")
+
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
-	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2;GRAFANA,GLOBAL1,GLOBAL2", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,...;GRAFANA,PROMETHEUS,LOKI,...")
+	flag.StringVar(&Config.LocalGlobalPortList, "local_global_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD;GRAFANA,GLOBAL1,GLOBAL2", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD,...;GRAFANA,PROMETHEUS,LOKI,...")
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
@@ -90,15 +95,17 @@ func init() {
 			log.Println("[INIT] Error Init SAMLSP is >", err)
 		}
 	}
+	userCreatorInit()
+	userContainerRemoverInit()
 }
 
 func main() {
 	Config.LocalGlobalPortList = strings.TrimSpace(Config.LocalGlobalPortList)
-	parts := strings.Split(Config.LocalGlobalPortList, ";")
+	parts := strings.Split(Config.LocalGlobalPortList, "|")
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if len(part) != 0 {
-			ports := strings.Split(part, ",")
+			ports := strings.Split(part, ";")
 			for _, port := range ports {
 				port = strings.TrimSpace(port)
 				AllRoutesRegexp[port] = &RouteMatch{

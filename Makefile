@@ -16,8 +16,11 @@ PODMAN_REMOTE=-v /run/user/$(UID)/podman/podman.sock:/run/podman/podman.sock:ro 
 # run target for Local Remote Dev Environment
 run:
 	/opt/homebrew/bin/podman run -it --rm --privileged --name rdev --network host \
-		-e DEVELOPER=reverse_proxy\
-		-e "DEV_CONT_REMOTE_OPTS=$(PODMAN_REMOTE)"\
+		-e DEVELOPER=reverse_proxy \
+		-e "DEV_CONT_REMOTE_OPTS=$(PODMAN_REMOTE)" \
+		-e "DEV_CONT_ENABLED_ADDONS_LIST=reverseproxy" \
+		-e "DEV_CONT_MODE_DISABLE_UNITS=true" \
+		-e "ENV_PARAM_REVERSEPROXY_LOCAL_GLOBAL_PORT_LIST=ADMIN;CODE;RSH;LOCAL1;LOCAL2|GRAFANA;GLOBAL1;GLOBAL2" \
 		-e ENV_PARAM_REVERSEPROXY_REPLACE_SUBDOMAIN_TO_COOKIE=true \
 		-e DEV_CONT_MODE_REVERSEPROXY_ONLY=true \
 		-e ENV_PARAM_REVERSEPROXY_PORT=10111 \

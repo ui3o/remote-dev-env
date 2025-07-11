@@ -15,28 +15,26 @@ mount --make-rshared /
 # [[ ! -L /var/lib/containers/storage/overlay-images && -d /var/lib/containers/storage/overlay-images ]] && rm -rf /var/lib/containers/storage/overlay-images && ln -sf /var/lib/shared-containers/overlay-images /var/lib/containers/storage/overlay-images
 # [[ ! -L /var/lib/containers/storage/overlay-layers && -d /var/lib/containers/storage/overlay-layers ]] && rm -rf /var/lib/containers/storage/overlay-layers && ln -sf /var/lib/shared-containers/overlay-layers /var/lib/containers/storage/overlay-layers
 
-
 mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
 echo root:10000:5000 >/etc/subgid
 
-# check DEV_CONT_MODE_REVERSEPROXY_ONLY
-if [[ "${DEV_CONT_MODE_REVERSEPROXY_ONLY:-false}" == "true" ]]; then
-    echo "DEV_CONT_MODE_REVERSEPROXY_ONLY is set, remove units"
-else
-    ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
+git fetch --all >> /tmp/boot.log 2>&1 || true
+git merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
+
+# git merge --allow-unrelated-histories my_dotfiles/master
+# check DEV_CONT_MODE_DISABLE_UNITS
+if [[ "${DEV_CONT_MODE_DISABLE_UNITS:-false}" == "true" ]]; then
+    echo "DEV_CONT_MODE_DISABLE_UNITS is set, remove units"
+    rm /usr/share/igo/.runtime/units/root
 fi
 
-# check DEV_CONT_MODE_NO_REVERSEPROXY
-if [[ "${DEV_CONT_MODE_NO_REVERSEPROXY:-false}" == "true" ]]; then
-    echo "DEV_CONT_MODE_NO_REVERSEPROXY is set, skipping reverse proxy setup"
-    mv /usr/share/igo/addons/reverseproxy/reverseproxy.start /usr/share/igo/addons/reverseproxy/reverseproxy.disabled
-fi
-
-# check DEV_CONT_MODE_NO_ADMIN
-if [[ "${DEV_CONT_MODE_NO_ADMIN:-false}" == "true" ]]; then
-    echo "DEV_CONT_MODE_NO_ADMIN is set, skipping reverse proxy setup"
-    mv /usr/share/igo/addons/admin/admin.start /usr/share/igo/addons/admin/admin.disabled
+if [[ -n "${DEV_CONT_ENABLED_ADDONS_LIST:-}" ]]; then
+    IFS=',' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
+    for addon in "${ADDONS[@]}"; do
+        echo "Enable addon: $addon"
+        mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start
+    done
 fi
 
 exec /usr/share/igo/igo/igo $@

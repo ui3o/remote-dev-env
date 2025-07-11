@@ -12,6 +12,7 @@ import (
 type RuntimeConfig struct {
 	Port             int
 	TemplateRootPath string
+	DomainPath       string
 }
 
 func serveWebsocket(remoteUrl string, c *gin.Context) {

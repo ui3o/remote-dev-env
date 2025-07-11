@@ -23,8 +23,8 @@ type JWTUser struct {
 }
 
 func (c JWTUser) ToString() string {
-	return fmt.Sprintf("[valid:(%t), host:(%s), domain:(%s), name:(%s), email:(%s)]",
-		c.IsValid, c.Host, c.Domain, c.Name, c.Email)
+	return fmt.Sprintf("[valid:(%t), routeId:(%s), host:(%s), domain:(%s), name:(%s), email:(%s)]",
+		c.IsValid, c.RouteId, c.Host, c.Domain, c.Name, c.Email)
 }
 
 func Encode(c JWTUser) (string, error) {

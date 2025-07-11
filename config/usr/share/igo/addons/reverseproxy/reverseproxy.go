@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	availableRemoteId = "availableRemoteId"
-	preHandlerCalled  = "preHandlerCalled"
+	availableRemoteId  = "availableRemoteId"
+	preHandlerCalled   = "preHandlerCalled"
+	userCreationWaiter = "userCreationWaiter"
 )
 
 type AllRestEndpointDefinition struct {
@@ -27,6 +28,8 @@ type RuntimeConfig struct {
 	CookieName               string
 	CookieAge                int
 	Port                     int
+	UserIdleCheckInterVal    int
+	UserIdleKillAfterTimeout int
 	CertFile                 string
 	KeyFile                  string
 	TemplateRootPath         string

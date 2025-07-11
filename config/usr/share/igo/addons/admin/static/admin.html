@@ -1,12 +1,33 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>My Secret Store</title>
-  </head>
-  <body>
-    <div>{{ .template_str }}</div>
-    <script>
-      console.log("... admin.html load ...")
-    </script>
-  </body>
+
+<head>
+  <title>My Secret Store</title>
+</head>
+
+<body>
+  <div>{{ .template_str }}</div>
+  <button id="downloadBtn">Download JSON</button>
+  <script>
+
+
+    console.log("... admin.html load ...")
+    document.getElementById('downloadBtn').addEventListener('click', async function () {
+      const response = await fetch('/issh_login_data');
+      const data = await response.json();
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "issh_login_data.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+
 </html>

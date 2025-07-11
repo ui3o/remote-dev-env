@@ -65,28 +65,60 @@ func modifyAccessFile(c *gin.Context, userName string) {
 	_ = os.Chtimes(filePath, time.Now(), time.Now())
 }
 
+func userContainerRemoverInit() {
+	go func() {
+		for {
+			log.Println("[REMOVER] userContainerRemoverInit running...")
+			runCmd("REMOVER", "pake", "removeIdleUsers.10", fmt.Sprintf("%d", Config.UserIdleKillAfterTimeout))
+			time.Sleep(time.Duration(Config.UserIdleCheckInterVal) * time.Minute)
+		}
+	}()
+}
+
+func userCreatorInit() {
+	go func() {
+		for c := range CreateUserChannel {
+			userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
+			routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
+
+			log.Println(debugHeader(userName), "CREATOR received start")
+			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
+				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
+			}
+			runCmd(userName, "pake", "start.10", userName)
+			if out, err := runCmd(userName, "pake", "getPortForRouteID.20", userName, routeId); err == nil {
+				checkPortIsOpened(userName, out)
+				watchContainerRunning(userName, routeId)
+				if AllRestEndpoint[userName] == nil {
+					AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
+					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
+				}
+				AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
+					RouteId:    routeId,
+					UserName:   userName,
+					RemoteUrls: []string{fmt.Sprintf("http://localhost:%s", out)},
+				}
+				AllRestEndpoint[userName].Endpoints[routeId].Register()
+			}
+			if done, exists := c.Get(userCreationWaiter); exists {
+				if ch, ok := done.(chan struct{}); ok {
+					close(ch)
+					log.Println(debugHeader(userName), "user creation done, notified waiter")
+				}
+			}
+		}
+	}()
+}
+
 func checkUserRouteId(c *gin.Context) {
 	userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
 	routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
 	if AllRestEndpoint[userName] == nil || AllRestEndpoint[userName].Endpoints[routeId] == nil {
-		if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
-			log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
-		}
-		runCmd(userName, "pake", "start.10", userName)
-		if out, err := runCmd(userName, "pake", "getPortForRouteID.20", userName, routeId); err == nil {
-			checkPortIsOpened(userName, out)
-			watchContainerRunning(userName, routeId)
-			if AllRestEndpoint[userName] == nil {
-				AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
-				AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
-			}
-			AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
-				RouteId:    routeId,
-				UserName:   userName,
-				RemoteUrls: []string{fmt.Sprintf("http://localhost:%s", out)},
-			}
-			AllRestEndpoint[userName].Endpoints[routeId].Register()
-		}
+		done := make(chan struct{})
+		// Wrap the context to include a done channel
+		c.Set(userCreationWaiter, done)
+		CreateUserChannel <- c
+		<-done // Wait until user creation is done
 	}
 }
 

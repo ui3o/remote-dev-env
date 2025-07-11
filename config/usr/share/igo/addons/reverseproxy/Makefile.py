@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 import gen_user_lock
+import time
 
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro \
@@ -32,16 +33,6 @@ def podmanCheckRun(developer="demo"):
     p = f"podman --remote container --filter=name=rdev-{developer} --format {{.Names}}".split(
         " "
     )
-    return [arg for arg in p if arg]
-
-
-def secretMove(developer="demo"):
-    p = [
-        *f"\
-        podman --remote exec -it rdev-{developer} bash -c \
-        ".split(" "),
-        f"mv /tmp/.runtime/logins/{developer}/localstorage /run/secrets/localstorage && touch /tmp/.runtime/logins/{developer}/localstorage.synced",
-    ]
     return [arg for arg in p if arg]
 
 
@@ -105,6 +96,20 @@ def start(developer: str = "demo"):
         logging.info(podmanStart(developer, portLock))
         subprocess.run(podmanStart(developer, portLock))
 
+# this is a start function
+def removeIdleUsers(idleTime: int = 1):
+    for user in runningContainerList():
+        user = user.strip()
+        access_file = f"/tmp/.runtime/logins/{user}/.access"
+        try:
+            stat = os.stat(access_file)
+            last_access = stat.st_mtime
+            idle_seconds = idleTime * 60
+            if time.time() - last_access > idle_seconds:
+                # remove the container if idle
+                subprocess.run(["podman", "--remote", "kill", f"rdev-{user}"])
+        except FileNotFoundError:
+            pass
 
 # this function checks if the container is running and exit if not
 def listenContainerRunning(developer: str = "demo"):

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -25,6 +26,8 @@ func init() {
 
 	flag.IntVar(&Config.Port, "port", 10113, "Port(10113)")
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
+	flag.StringVar(&Config.DomainPath, "domain_path", "", "")
+
 	if value, ok := os.LookupEnv("PORT_ADMIN"); ok {
 		if portInt, err := strconv.Atoi(value); err == nil {
 			Config.Port = portInt
@@ -52,6 +55,18 @@ func main() {
 	r.NoRoute(func(c *gin.Context) {
 		log.Println("[REQ_START] Handle request => |", c.Request.Host, "|", c.Request.URL.Path)
 		switch c.Request.URL.Path {
+		case "/issh_login_data":
+			if cookieName := os.Getenv("ENV_PARAM_REVERSEPROXY_COOKIE_NAME"); cookieName != "" {
+				if cookie, err := c.Cookie(cookieName); err == nil {
+					data := UserLoginData{
+						Cookie: cookie,
+						Domain: "ws://" + Config.DomainPath + "/ssh",
+					}
+					c.JSON(http.StatusOK, data)
+				}
+			}
+		case "/ssh":
+			sshdWs(c)
 		case "/static/admin.html":
 			log.Println("load admin.html")
 			c.HTML(200, "admin.html", gin.H{
