@@ -3,6 +3,8 @@ import re
 
 
 # create default
+ENV_LIST = ""
+ENV_LIST_EXPORTABLE = ""
 GLOBAL_PORT_START = 9000
 USER_PORT_START = 11000
 # get the max port counter from environment variable or use default
@@ -50,10 +52,16 @@ def create_file_with_content(file_path, content):
 
 
 def appendLabel(paramList: list[str], prefix: str, name: str, value: str):
+    global ENV_LIST
+    global ENV_LIST_EXPORTABLE
     paramList.append(f"--label {prefix}{name}Env={value}")
     if prefix:
         prefix = prefix + "_"
     paramList.append(f"-e {prefix.upper()}{name}={value}")
+    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\n"
+    ENV_LIST_EXPORTABLE = (
+        ENV_LIST_EXPORTABLE + f"export {prefix.upper()}{name}={value}\n"
+    )
     pass
 
 
@@ -70,4 +78,6 @@ def createLabelList(user: str, portStart: int) -> str:
     appendLabel(paramList, "", "DEVELOPER", user)
     appendLabel(paramList, "", "USER", "root")
     appendLabel(paramList, "", "HOME", "/root")
+    paramList.append(f"-e ENV_LIST={ENV_LIST}")
+    paramList.append(f"-e ENV_LIST_EXPORTABLE={ENV_LIST_EXPORTABLE}")
     return " ".join(paramList)

@@ -21,6 +21,8 @@ echo root:10000:5000 >/etc/subgid
 
 git -C /root fetch --all >> /tmp/boot.log 2>&1 || true
 git -C /root merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
+echo "# container specific environment variable list" >> /root/environment
+awk -v t="$ENV_LIST" 'BEGIN{print t}' >> /root/environment
 
 # git merge --allow-unrelated-histories my_dotfiles/master
 # check DEV_CONT_MODE_DISABLE_UNITS
