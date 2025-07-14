@@ -30,7 +30,7 @@ func checkPortIsOpened(userName, port string) {
 
 func watchContainerRunning(userName, routeId string) {
 	go func() {
-		cmd := exec.Command("pake", "listenContainerRunning.10", userName)
+		cmd := exec.Command("pake", "listenContainerRunning", userName)
 		cmd.Run()
 		log.Println(debugHeader(userName), "Remove ", routeId, " from AllRestEndpoint.Endpoint")
 		delete(AllRestEndpoint[userName].Endpoints, routeId)
@@ -69,7 +69,7 @@ func userContainerRemoverInit() {
 	go func() {
 		for {
 			log.Println("[REMOVER] userContainerRemoverInit running...")
-			runCmd("REMOVER", "pake", "removeIdleUsers.10", fmt.Sprintf("%d", Config.UserIdleKillAfterTimeout))
+			runCmd("REMOVER", "pake", "removeIdleUsers", fmt.Sprintf("%d", Config.UserIdleKillAfterTimeout))
 			time.Sleep(time.Duration(Config.UserIdleCheckInterVal) * time.Minute)
 		}
 	}()
@@ -85,8 +85,8 @@ func userCreatorInit() {
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
-			runCmd(userName, "pake", "start.10", userName)
-			if out, err := runCmd(userName, "pake", "getPortForRouteID.20", userName, routeId); err == nil {
+			runCmd(userName, "pake", "start", userName)
+			if out, err := runCmd(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
 				checkPortIsOpened(userName, out)
 				watchContainerRunning(userName, routeId)
 				if AllRestEndpoint[userName] == nil {

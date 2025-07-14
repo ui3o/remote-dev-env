@@ -8,9 +8,9 @@ import sys
 sys.path.insert(0, os.getcwd())
 sys.dont_write_bytecode = True
 import Makefile
-# todo comma separated list
-callables = []
 
+
+callables = []
 
 class FixedLevelFormatter(logging.Formatter):
     def format(self, record):
@@ -38,38 +38,33 @@ def str_to_bool(s: str | bool):
     raise ValueError
 
 
+def calculateParamSize(arr: list[str]):
+    try:
+        pos = arr.index(",")
+        return pos
+    except ValueError:
+        return len(arr)
+
+
 ARGS = sys.argv[1:]
 while ARGS:
     arg = ARGS.pop(0)
-    # todo check that arg includes "."
-
-    if "." not in arg or len(arg.split(".")[1]) == 0:
-        print(
-            f"To call a target in the Makefile.py you have to call something like {arg}.xx!!!"
-        )
-        exit(1)
-
-    argParamSize = arg.split(".")[1]
-    arg = arg.split(".")[0]
-    allArgParamSize = -1
-    allArgParamSize = -1
-    try:
-        allArgParamSize = int(argParamSize[0])
-        setArgParamSize = int(argParamSize[1])
-    except ValueError:
-        print(f"Your Makefile.py {arg} target parameter definition are not numbers!!!")
-        exit(1)
+    if arg == ",":
+        continue
 
     if hasattr(Makefile, arg) and callable(getattr(Makefile, arg)):
         call_args = []
         pickedParam = 0
         funcParams = inspect.signature(getattr(Makefile, arg)).parameters.items()
+        allArgParamSize = len(funcParams)
+        setArgParamSize = calculateParamSize(ARGS)
+        print(setArgParamSize)
         for name, param in funcParams:
-            if pickedParam < allArgParamSize - setArgParamSize:
+            if pickedParam + setArgParamSize < allArgParamSize:
+                value = param.default
+            else:
                 pickedParam += 1
                 value = ARGS.pop(0) if ARGS else None
-            else:
-                value = param.default
             if value is None:
                 print(
                     f"Your {arg} target needs parameters: {name}[{param.annotation.__name__}]"
