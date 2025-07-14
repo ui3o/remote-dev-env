@@ -58,10 +58,10 @@ def appendLabel(paramList: list[str], prefix: str, name: str, value: str):
     if prefix:
         prefix = prefix + "_"
     paramList.append(f"-e {prefix.upper()}{name}={value}")
-    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\n"
-    ENV_LIST_EXPORTABLE = (
-        ENV_LIST_EXPORTABLE + f"export {prefix.upper()}{name}={value}\n"
-    )
+    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\\n"
+    # ENV_LIST_EXPORTABLE = (
+    #     ENV_LIST_EXPORTABLE + f"export {prefix.upper()}{name}={value}\\n"
+    # )
     pass
 
 
@@ -79,5 +79,5 @@ def createLabelList(user: str, portStart: int) -> str:
     appendLabel(paramList, "", "USER", "root")
     appendLabel(paramList, "", "HOME", "/root")
     paramList.append(f"-e ENV_LIST={ENV_LIST}")
-    paramList.append(f"-e ENV_LIST_EXPORTABLE={ENV_LIST_EXPORTABLE}")
+    # paramList.append(f"-e ENV_LIST_EXPORTABLE={ENV_LIST_EXPORTABLE}")
     return " ".join(paramList)

@@ -32,9 +32,9 @@ if (latestLoginDataFile) {
   try {
     const fileContent = fs.readFileSync(latestLoginDataFile, "utf8");
     loginData = JSON.parse(fileContent);
-    const ws = new WebSocket(loginData.domain.replace("ws", "wss"), {
+    const ws = new WebSocket(loginData.domain, {
       headers: {
-        Cookie: "dbt-codebox-token=" + loginData.cookie,
+        Cookie: loginData.cookie,
       },
     });
 
