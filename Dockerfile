@@ -104,10 +104,7 @@ RUN ln -s /etc/units /usr/share/igo/.runtime/units/system && \
 
 RUN ssh-keygen -A
 WORKDIR /usr/share/igo/issh
-RUN GOOS=windows GOARCH=amd64 go build -o bin/issh.exe . && \
-    GOOS=darwin  GOARCH=amd64 go build -o bin/issh-mac-intel . && \
-    GOOS=darwin  GOARCH=arm64 go build -o bin/issh-mac-arm . && \
-    GOOS=linux   GOARCH=amd64 go build -o bin/issh-linux 
+RUN npm i
 
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
