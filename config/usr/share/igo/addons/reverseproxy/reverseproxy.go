@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/andybalholm/brotli"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
@@ -34,6 +36,7 @@ type RuntimeConfig struct {
 	KeyFile                  string
 	TemplateRootPath         string
 	HomeFolderPath           string
+	AdminAddonDomainPath     string
 	LocalPortList            []string
 	GlobalPortList           []string
 	ReplaceSubdomainToCookie bool
@@ -59,6 +62,26 @@ type availableRemote struct {
 	all     map[string]bool
 }
 
+func brotliToString(brBytes []byte) (string, error) {
+	reader := brotli.NewReader(bytes.NewReader(brBytes))
+	decompressed, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(decompressed), nil
+}
+
+func stringToBrotli(s string) ([]byte, error) {
+	var buf bytes.Buffer
+	w := brotli.NewWriter(&buf)
+	_, err := w.Write([]byte(s))
+	if err != nil {
+		return nil, err
+	}
+	w.Close()
+	return buf.Bytes(), nil
+}
+
 func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target string, c *gin.Context) {
 	// Create the new request to the backend
 	req, err := http.NewRequest(c.Request.Method, "http://"+target+c.Request.RequestURI, c.Request.Body)
@@ -80,18 +103,23 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 		return
 	}
 	defer resp.Body.Close()
+	accept := c.Request.Header.Get("Accept")
 
 	// Copy all headers
 	for k, v := range resp.Header {
 		for _, vv := range v {
-			c.Writer.Header().Add(k, vv)
+			if strings.Contains(accept, "text/html") && k == "Content-Security-Policy" && user.RouteId == "CODE" {
+				nv := strings.Replace(vv, "'nonce-1nline-m4p'", Config.AdminAddonDomainPath+" 'nonce-1nline-m4p'", 1)
+				nv = strings.Replace(nv, "https://*.vscode", Config.AdminAddonDomainPath+" https://*.vscode", 1)
+				c.Writer.Header().Add(k, nv)
+			} else {
+				c.Writer.Header().Add(k, vv)
+			}
 		}
 	}
 	c.Status(resp.StatusCode)
 
 	// Copy body
-	accept := c.Request.Header.Get("Accept")
-
 	if strings.Contains(accept, "text/html") {
 		log.Println(debugHeader(user.Name), "start to replace response body")
 
@@ -116,9 +144,30 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 			log.Println(debugHeader(user.Name), "add this path to script:", src)
 
 			bodyStr := string(bodyBytes)
-			bodyStr = strings.Replace(bodyStr, "</body>", `<script src="`+src+`"></script></body>`, 1)
-			c.Writer.Write([]byte(bodyStr))
-			return
+			if resp.Header.Get("Content-Encoding") == "br" {
+				str, err := brotliToString(bodyBytes)
+				if err != nil {
+					log.Println(debugHeader(p.UserName), "error to decode br")
+					c.Writer.Write(bodyBytes)
+					return
+				} else {
+					bodyStr = strings.Replace(str, "</body>", `<script src="`+src+`" defer></script></body>`, 1)
+					brBytes, err := stringToBrotli(bodyStr)
+					if err != nil {
+						log.Println(debugHeader(p.UserName), "error to encode br")
+						c.Writer.Write(bodyBytes)
+						return
+					} else {
+						c.Writer.Write(brBytes)
+						return
+					}
+				}
+			} else {
+				bodyStr = strings.Replace(bodyStr, "</body>", `<script src="`+src+`" defer></script></body>`, 1)
+				c.Writer.Write([]byte(bodyStr))
+				return
+			}
+
 		}
 	}
 	io.Copy(c.Writer, resp.Body)

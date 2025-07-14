@@ -19,8 +19,9 @@ mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
 echo root:10000:5000 >/etc/subgid
 
-git -C /root fetch --all >> /tmp/boot.log 2>&1 || true
-git -C /root merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
+# git -C /root fetch --all >> /tmp/boot.log 2>&1 || true
+# git -C /root merge --allow-unrelated-histories --no-edit  -Xtheirs shared_dotfiles/master >> /tmp/boot.log 2>&1 || true
+/root/.local/bin/update-shared >> /tmp/boot.log 2>&1 || true
 echo "# container specific environment variable list" >> /root/.ssh/environment
 awk -v t="$ENV_LIST" 'BEGIN{print t}' >> /root/.ssh/environment
 echo PATH=$PATH >> /root/.ssh/environment

@@ -64,6 +64,7 @@ func init() {
 
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
+	flag.StringVar(&Config.AdminAddonDomainPath, "admin_addon_domain_path", "", "")
 
 	var portList string
 	flag.StringVar(&portList, "local_port_list", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD;...")
