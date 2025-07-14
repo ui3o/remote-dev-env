@@ -58,7 +58,6 @@ while ARGS:
         funcParams = inspect.signature(getattr(Makefile, arg)).parameters.items()
         allArgParamSize = len(funcParams)
         setArgParamSize = calculateParamSize(ARGS)
-        print(setArgParamSize)
         for name, param in funcParams:
             if pickedParam + setArgParamSize < allArgParamSize:
                 value = param.default
