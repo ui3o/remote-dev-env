@@ -6,3 +6,4 @@ tmp/
 .vscode/
 .env
 todo.md
+config/usr/share/igo/issh/node_modules
