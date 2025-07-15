@@ -108,9 +108,9 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 	// Copy all headers
 	for k, v := range resp.Header {
 		for _, vv := range v {
-			if strings.Contains(accept, "text/html") && k == "Content-Security-Policy" && user.RouteId == "CODE" {
-				nv := strings.Replace(vv, "'nonce-1nline-m4p'", Config.AdminAddonDomainPath+" 'nonce-1nline-m4p'", 1)
-				nv = strings.Replace(nv, "https://*.vscode", Config.AdminAddonDomainPath+" https://*.vscode", 1)
+			if strings.Contains(accept, "text/html") && k == "Content-Security-Policy" {
+				nv := strings.Replace(vv, "script-src", "script-src "+Config.AdminAddonDomainPath, 1)
+				nv = strings.Replace(nv, "frame-src", "frame-src "+Config.AdminAddonDomainPath, 1)
 				c.Writer.Header().Add(k, nv)
 			} else {
 				c.Writer.Header().Add(k, vv)
