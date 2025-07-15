@@ -91,6 +91,10 @@ RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
 ENV PATH="/root/.local/bin:/root/go/bin:$PATH"
 
 RUN usermod --shell /usr/bin/zsh root
+
+COPY ./config/etc/ /etc/
+COPY ./config/usr /usr
+
 WORKDIR /
 RUN cp /etc/default.gitigonre /.gitigonre && \
     git init && git add . && git commit -m "init" && \
@@ -98,8 +102,6 @@ RUN cp /etc/default.gitigonre /.gitigonre && \
     git remote add my_dotfiles ~/ss/.dotfiles
 
 
-COPY ./config/etc/ /etc/
-COPY ./config/usr /usr
 RUN ln -s /etc/units /usr/share/igo/.runtime/units/system && \
     ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
 
