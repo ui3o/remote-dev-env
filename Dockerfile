@@ -119,5 +119,7 @@ ENV ENV_PARAM_REVERSEPROXY_SERVER_CERT=/usr/share/igo/addons/reverseproxy/exampl
 ENV ENV_PARAM_REVERSEPROXY_SERVER_KEY=/usr/share/igo/addons/reverseproxy/example_cert/example_server_key.pem
 ENV ENV_PARAM_REVERSEPROXY_TEMPLATE_ROOT_PATH=/usr/share/igo/addons/reverseproxy/
 
+RUN cp -a /usr/share/igo /usr/share/igo_foss
+
 RUN	groupadd -f igo
 ENTRYPOINT [ "/etc/entrypoint.sh" ]
