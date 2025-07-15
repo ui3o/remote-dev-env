@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,18 +15,19 @@ import (
 	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
 )
 
-func checkPortIsOpened(userName, port string) {
-	for {
+func checkPortIsOpened(userName, port string) error {
+	for i := Config.MaxRetryCountForPortOpening; i > 0; i-- {
 		cmd := exec.Command("nc", "-z", "localhost", port)
 		err := cmd.Run()
 		if err == nil {
 			log.Println(debugHeader(userName), "Port is opened: ", port)
-			break
+			return nil
 		} else {
 			log.Println(debugHeader(userName), "Port is not available yet for:", port)
-			time.Sleep(150 * time.Microsecond)
+			time.Sleep(100 * time.Microsecond)
 		}
 	}
+	return errors.New("port is not available after retries")
 }
 
 func watchContainerRunning(userName, routeId string) {
@@ -86,40 +88,51 @@ func userCreatorInit() {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
 			runCmd(userName, "pake", "start", userName)
+			success := false
 			if out, err := runCmd(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
-				checkPortIsOpened(userName, out)
-				watchContainerRunning(userName, routeId)
-				if AllRestEndpoint[userName] == nil {
-					AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
-					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
+				if err := checkPortIsOpened(userName, out); err == nil {
+					success = true
+					watchContainerRunning(userName, routeId)
+					if AllRestEndpoint[userName] == nil {
+						AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
+						AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
+					}
+					AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
+						RouteId:    routeId,
+						UserName:   userName,
+						RemoteUrls: []string{fmt.Sprintf("http://localhost:%s", out)},
+					}
+					AllRestEndpoint[userName].Endpoints[routeId].Register()
 				}
-				AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
-					RouteId:    routeId,
-					UserName:   userName,
-					RemoteUrls: []string{fmt.Sprintf("http://localhost:%s", out)},
-				}
-				AllRestEndpoint[userName].Endpoints[routeId].Register()
 			}
 			if done, exists := c.Get(userCreationWaiter); exists {
-				if ch, ok := done.(chan struct{}); ok {
+				if ch, ok := done.(chan bool); ok {
+					ch <- success
 					close(ch)
-					log.Println(debugHeader(userName), "user creation done, notified waiter")
 				}
 			}
 		}
 	}()
 }
 
-func checkUserRouteId(c *gin.Context) {
+func checkUserRouteId(c *gin.Context) error {
 	userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
 	routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
 	if AllRestEndpoint[userName] == nil || AllRestEndpoint[userName].Endpoints[routeId] == nil {
-		done := make(chan struct{})
+		done := make(chan bool, 1)
 		// Wrap the context to include a done channel
 		c.Set(userCreationWaiter, done)
 		CreateUserChannel <- c
-		<-done // Wait until user creation is done
+		portOpenSuccess := <-done
+		if portOpenSuccess {
+			log.Println(debugHeader(userName), "user creation and port check done successfully")
+			return nil
+		} else {
+			log.Println(debugHeader(userName), "user creation and port check has error")
+			return errors.New("this endpoint not available at the moment, if you know it is available please refresh the page")
+		}
 	}
+	return nil
 }
 
 func readUser(c *gin.Context) *simple.JWTUser {

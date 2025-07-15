@@ -27,21 +27,22 @@ type AllRestEndpointDefinition struct {
 	Endpoints map[string]*RestEndpointDefinition
 }
 type RuntimeConfig struct {
-	CookieName               string
-	CookieAge                int
-	Port                     int
-	UserIdleCheckInterVal    int
-	UserIdleKillAfterTimeout int
-	CertFile                 string
-	KeyFile                  string
-	TemplateRootPath         string
-	HomeFolderPath           string
-	AdminAddonDomainPath     string
-	LocalPortList            []string
-	GlobalPortList           []string
-	ReplaceSubdomainToCookie bool
-	UseSAMLAuth              bool
-	SAML                     *saml.SAMLConfig
+	CookieName                  string
+	CookieAge                   int
+	Port                        int
+	UserIdleCheckInterVal       int
+	UserIdleKillAfterTimeout    int
+	MaxRetryCountForPortOpening int
+	CertFile                    string
+	KeyFile                     string
+	TemplateRootPath            string
+	HomeFolderPath              string
+	AdminAddonDomainPath        string
+	LocalPortList               []string
+	GlobalPortList              []string
+	ReplaceSubdomainToCookie    bool
+	UseSAMLAuth                 bool
+	SAML                        *saml.SAMLConfig
 }
 
 type RouteMatch struct {
@@ -302,9 +303,13 @@ func (p *RestEndpointDefinition) StartServeProxy(user *simple.JWTUser, c *gin.Co
 }
 
 func HandleRequest(user *simple.JWTUser, c *gin.Context) {
-	checkUserRouteId(c)
-	log.Println(debugHeader(user.Name), "handle logged in user and route", user.RouteId)
-	AllRestEndpoint[user.Name].Endpoints[user.RouteId].StartServeProxy(user, c)
+	if err := checkUserRouteId(c); err == nil {
+		log.Println(debugHeader(user.Name), "handle logged in user and route", user.RouteId)
+		AllRestEndpoint[user.Name].Endpoints[user.RouteId].StartServeProxy(user, c)
+	} else {
+		c.Error(err)
+		c.String(http.StatusInternalServerError, err.Error())
+	}
 }
 
 func createCookie(c *gin.Context, user *simple.JWTUser, cookieName, cookieData string) {

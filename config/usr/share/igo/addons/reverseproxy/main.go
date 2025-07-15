@@ -61,6 +61,7 @@ func init() {
 
 	flag.IntVar(&Config.UserIdleCheckInterVal, "user_idle_check_interval", 1, "default is 1 minutes")
 	flag.IntVar(&Config.UserIdleKillAfterTimeout, "user_idle_kill_after_timeout", 600, "default is 600 seconds")
+	flag.IntVar(&Config.MaxRetryCountForPortOpening, "max_retry_count_for_port_opening", 70, "default is 70 so 70x100ms=7sec")
 
 	flag.StringVar(&Config.TemplateRootPath, "template_root_path", "", "")
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
