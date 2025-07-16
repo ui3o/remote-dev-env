@@ -2,5 +2,5 @@
 
 set -e
 
-/root/ss/.config/dotfiles/install.sh
+/root/ss/.config/layers/install.sh
 
