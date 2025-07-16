@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 
 	"strings"
@@ -86,6 +87,7 @@ func init() {
 	flag.StringVar(&Config.SAML.KeyFile, "saml_keyfile", "", "")
 	flag.StringVar(&Config.SAML.Domain, "saml_domain", "", "")
 	flag.StringVar(&Config.SAML.AuthnNameIDFormat, "saml_authnnameidformat", "", "")
+	flag.StringVar(&Config.SAML.RedirectParameter, "saml_redirect_parameter", "/?remote-dev-env-redirect=", "")
 
 	flag.Parse()
 	flagconf.ParseEnv()
@@ -148,8 +150,18 @@ func main() {
 					_, err := SAMLSP.Session.GetSession(c.Request)
 					log.Println(debugHeader(user.Name), "SAMLSP err >", err)
 					if err == samlsp.ErrNoSession {
-						log.Println(debugHeader(user.Name), "SAMLSP HandleStartAuthFlow")
-						SAMLSP.HandleStartAuthFlow(c.Writer, c.Request)
+						if strings.HasPrefix(c.Request.RequestURI, Config.SAML.RedirectParameter) {
+							log.Println(debugHeader(user.Name), "SAMLSP HandleStartAuthFlow")
+							SAMLSP.HandleStartAuthFlow(c.Writer, c.Request)
+						} else {
+							v := url.Values{}
+							schema := "http"
+							if c.Request.TLS != nil {
+								schema = "https"
+							}
+							v.Add("remote-dev-env-redirect", schema+"://"+c.Request.Host+c.Request.RequestURI)
+							c.Redirect(http.StatusFound, Config.SAML.RootURL+"?"+v.Encode())
+						}
 					}
 				}
 			} else {
@@ -185,14 +197,25 @@ func main() {
 			}
 		} else {
 			modifyAccessFile(c, user.Name)
-			log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
-			if len(user.RouteId) > 0 {
-				log.Println(debugHeader(user.Name), "findRoute has found a route")
-				HandleRequest(user, c)
+			if strings.HasPrefix(c.Request.RequestURI, Config.SAML.RedirectParameter) {
+				escapedQuery := strings.Replace(c.Request.RequestURI, Config.SAML.RedirectParameter, "", 1)
+				query, err := url.QueryUnescape(escapedQuery)
+				if err != nil {
+					log.Println(debugHeader(user.Name), "can not QueryUnescape the remote-dev-env-redirect")
+				}
+				log.Println(debugHeader(user.Name), "start redirect to:", query)
+				c.Redirect(http.StatusFound, query)
 			} else {
-				log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
-				return
+				log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
+				if len(user.RouteId) > 0 {
+					log.Println(debugHeader(user.Name), "findRoute has found a route")
+					HandleRequest(user, c)
+				} else {
+					log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
+					return
+				}
 			}
+
 		}
 	})
 
