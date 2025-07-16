@@ -76,6 +76,7 @@ def createLabelList(user: str, email: str, portStart: int) -> str:
         appendLabel(paramList, "port", name, str(count))
     # unique list
     appendLabel(paramList, "", "DEVELOPER", user)
+    appendLabel(paramList, "", "DEVELOPER_EMAIL", email)
     appendLabel(paramList, "", "USER", "root")
     appendLabel(paramList, "", "HOME", "/root")
     paramList.append(f"-e ENV_LIST={ENV_LIST}")
