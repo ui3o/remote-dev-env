@@ -8,7 +8,7 @@ const printParamList = (line, comment) => {
   const paramList = funcDef[1].split(")")[0];
   const pl = paramList.split(",");
   const allParamCount = paramList.length ? pl.length : 0;
-  console.log(`${funcDef[0]}:© » ${comment.trim()}`);
+  console.log(`${funcDef[0]}:# ${comment.trim()}`);
   console.log(`${funcDef[0]}:@ »» (${paramList})`);
 };
 

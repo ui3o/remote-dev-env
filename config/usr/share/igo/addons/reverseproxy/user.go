@@ -81,13 +81,14 @@ func userCreatorInit() {
 	go func() {
 		for c := range CreateUserChannel {
 			userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
+			userEmail := c.GetHeader(REQ_HEADER_PROXY_USER_EMAIL)
 			routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
 
 			log.Println(debugHeader(userName), "CREATOR received start")
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
-			runCmd(userName, "pake", "start", userName)
+			runCmd(userName, "pake", "start", userName, userEmail)
 			success := false
 			if out, err := runCmd(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
 				if err := checkPortIsOpened(userName, out); err == nil {
@@ -180,6 +181,7 @@ func readUser(c *gin.Context) *simple.JWTUser {
 
 	if user.IsValid {
 		c.Request.Header.Add(REQ_HEADER_PROXY_USER_NAME, user.Name)
+		c.Request.Header.Add(REQ_HEADER_PROXY_USER_EMAIL, user.Email)
 	}
 	findRoute(&user, c)
 	log.Println(debugHeader(user.Name), "final readUser result", user.ToString())

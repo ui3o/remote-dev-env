@@ -14,7 +14,7 @@ DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
 
 
-def podmanStart(developer="demo", portLock: int = 9000):
+def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
     # todo list all portRSH, portCODE
     p = f"\
         podman --remote run -d --rm --privileged --name rdev-{developer} --network host\
@@ -23,7 +23,7 @@ def podmanStart(developer="demo", portLock: int = 9000):
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
             -v {HOME_FOLDER_PATH}{developer}:/root/ss:Z \
-            {gen_user_lock.createLabelList(developer, portLock)}\
+            {gen_user_lock.createLabelList(developer, email, portLock)}\
             {DEV_CONT_REMOTE_OPTS}\
         ".split(" ")
     return [arg for arg in p if arg]
@@ -89,18 +89,17 @@ def calculateLockNum() -> int:
 
 
 # this is a start function
-def start(developer: str = "demo"):
+def start(developer: str = "demo", email="demo@demo.com"):
     # todo set lock and all ports
     portLock: int = calculateLockNum()
     if portLock:
-        logging.info(podmanStart(developer, portLock))
-        subprocess.run(podmanStart(developer, portLock))
+        logging.info(podmanStart(developer, email, portLock))
+        subprocess.run(podmanStart(developer, email, portLock))
+
 
 # this is a start function
 def removeIdleUsers(idleTime: int = 1):
-    out = subprocess.run(
-        runningContainerList(), capture_output=True
-    )
+    out = subprocess.run(runningContainerList(), capture_output=True)
     result = out.stdout.decode().strip()
     if not result:
         logging.info("No running containers found.")
@@ -120,6 +119,7 @@ def removeIdleUsers(idleTime: int = 1):
         except FileNotFoundError:
             pass
 
+
 # this function checks if the container is running and exit if not
 def listenContainerRunning(developer: str = "demo"):
     logging.info(podmanWatchLogs(developer))
@@ -133,4 +133,3 @@ def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):
     )
     result = out.stdout.decode().strip()
     print(result, end="")
-

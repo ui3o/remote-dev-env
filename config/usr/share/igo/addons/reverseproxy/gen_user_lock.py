@@ -65,7 +65,7 @@ def appendLabel(paramList: list[str], prefix: str, name: str, value: str):
     pass
 
 
-def createLabelList(user: str, portStart: int) -> str:
+def createLabelList(user: str, email: str, portStart: int) -> str:
     paramList = []
     for idx, name in enumerate(DEDICATED_LOCAL_NAMES, start=0):
         count = portStart + idx

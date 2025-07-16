@@ -37,6 +37,7 @@ type UserEnv struct {
 const DEFAULT_USERNAME = "zzz"
 const DOMAIN_COOKIE_NAME = "remote-dev-domain"
 const REQ_HEADER_PROXY_USER_NAME = "req-header-proxy-user-name"
+const REQ_HEADER_PROXY_USER_EMAIL = "req-header-proxy-user-email"
 const REQ_HEADER_ROUTE_ID = "req-header-route-id"
 
 func debugHeader(username string) string {
