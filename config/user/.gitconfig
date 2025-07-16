@@ -5,3 +5,6 @@
 [user]
 	name = user
 	email = mail
+[merge "gitignore-merge"]
+    name = always take ours for .gitignore
+    driver = echo skipping .ignorefile
