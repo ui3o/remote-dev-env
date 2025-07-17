@@ -89,6 +89,7 @@ func init() {
 	flag.StringVar(&Config.SAML.Domain, "saml_domain", "", "")
 	flag.StringVar(&Config.SAML.AuthnNameIDFormat, "saml_authnnameidformat", "", "")
 	flag.StringVar(&Config.SAML.RedirectParameter, "saml_redirect_parameter", "/?remote-dev-env-redirect=", "")
+	flag.StringVar(&Config.SAML.RedirectUrl, "saml_redirect_url", "", "")
 
 	flag.Parse()
 	flagconf.ParseEnv()
@@ -161,7 +162,7 @@ func main() {
 								schema = "https"
 							}
 							v.Add("remote-dev-env-redirect", schema+"://"+c.Request.Host+c.Request.RequestURI)
-							c.Redirect(http.StatusFound, Config.SAML.RootURL+"?"+v.Encode())
+							c.Redirect(http.StatusFound, Config.SAML.RedirectUrl+"?"+v.Encode())
 						}
 					}
 				}
