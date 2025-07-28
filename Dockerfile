@@ -96,10 +96,6 @@ COPY ./config/etc/ /etc/
 COPY ./config/usr /usr
 
 WORKDIR /
-RUN cp /etc/default.gitignore /.gitignore && \
-    git init && git add . && git commit -m "init" && \
-    git remote add shared_layers /shared/.layers && \
-    git remote add my_layers ~/ss/.layers
 
 RUN ln -s /etc/units /usr/share/igo/.runtime/units/system && \
     ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
