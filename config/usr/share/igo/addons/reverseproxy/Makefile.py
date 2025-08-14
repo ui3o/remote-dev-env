@@ -5,9 +5,8 @@ import gen_user_lock
 import time
 
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
-        -v /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro \
+        -v /tmp/rce.sock:/tmp/rce.sock:ro \
         -v r_dev_shared_vol:/var/lib/shared-containers \
-        -e DOCKER_HOST=unix:///run/podman/podman.sock \
         localhost/local-remote-dev-env:latest"
 DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
 
@@ -17,7 +16,7 @@ HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
 def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
     # todo list all portRSH, portCODE
     p = f"\
-        podman --remote run -d --rm --privileged --name rdev-{developer} --network host\
+        rce podman run -d --rm --privileged --name rdev-{developer} --network host\
             --label portLock={portLock}\
             -e DEVELOPER={developer}\
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
@@ -30,7 +29,7 @@ def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
 
 
 def podmanCheckRun(developer="demo"):
-    p = f"podman --remote container --filter=name=rdev-{developer} --format {{.Names}}".split(
+    p = f"rce podman container --filter=name=rdev-{developer} --format {{.Names}}".split(
         " "
     )
     return [arg for arg in p if arg]
@@ -39,7 +38,7 @@ def podmanCheckRun(developer="demo"):
 def portLocksList():
     p = [
         *"\
-        podman --remote ps --filter=name=rdev-.* --format {{.Labels.portLock}}\
+        rce podman ps --filter=name=rdev-.* --format {{.Labels.portLock}}\
         ".split(" ")
     ]
     return [arg for arg in p if arg]
@@ -48,7 +47,7 @@ def portLocksList():
 def runningContainerList():
     p = [
         *"\
-        podman --remote ps --filter=name=rdev-.* --format {{.Labels.DEVELOPEREnv}}\
+        rce podman ps --filter=name=rdev-.* --format {{.Labels.DEVELOPEREnv}}\
         ".split(" ")
     ]
     return [arg for arg in p if arg]
@@ -58,7 +57,7 @@ def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
     p = [
         *(
             "\
-        podman --remote ps --filter=name=rdev-"
+        rce podman ps --filter=name=rdev-"
             + developer
             + " --format {{.Labels.port"
             + portRouteNameId
@@ -71,7 +70,7 @@ def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
 
 
 def podmanWatchLogs(developer="demo"):
-    p = [*(f"podman --remote logs -f rdev-{developer}").split(" ")]
+    p = [*(f"rce podman logs -f rdev-{developer}").split(" ")]
     return [arg for arg in p if arg]
 
 
@@ -115,7 +114,7 @@ def removeIdleUsers(idleTime: int = 1):
             idle_seconds = idleTime * 60
             if time.time() - last_access > idle_seconds:
                 # remove the container if idle
-                subprocess.run(["podman", "--remote", "kill", f"rdev-{user}"])
+                subprocess.run(["rce", "podman", "kill", f"rdev-{user}"])
         except FileNotFoundError:
             pass
 

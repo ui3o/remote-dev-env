@@ -6,19 +6,21 @@ import os
 import threading
 import json
 from enum import Enum
-# rems
 
 SOCKET_PATH = "/tmp/rce.sock"
 WHITELIST_FILE_NAME = "whitelist.json"
-WHITELIST_FILE = WHITELIST_FILE_NAME
-whitelist_path = os.path.expanduser(f"~/.config/rced/{WHITELIST_FILE_NAME}")
-if os.path.exists(whitelist_path):
-    WHITELIST_FILE = whitelist_path
 
 
 class ExecMode(Enum):
     THREAD = "thread"
     MAIN = "main"
+
+
+def getWhitelistFile() -> str:
+    whitelist_path = os.path.expanduser(f"~/.config/rced/{WHITELIST_FILE_NAME}")
+    if os.path.exists(whitelist_path):
+        return whitelist_path
+    return WHITELIST_FILE_NAME
 
 
 def msg(type: ExecMode, msg: str = "", uid: str = ""):
@@ -68,7 +70,7 @@ def handle_client(conn):
             if not remote_command.get("cmd"):
                 sendall(conn, {"code": 1, "error": "Empty command"})
                 return
-            with open(WHITELIST_FILE, "r") as f:
+            with open(getWhitelistFile(), "r") as f:
                 whitelist_data = json.load(f)
             if remote_command.get("developer") not in whitelist_data:
                 if remote_command.get("user") not in whitelist_data:
