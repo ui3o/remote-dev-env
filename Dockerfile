@@ -120,5 +120,5 @@ ENV ENV_PARAM_REVERSEPROXY_TEMPLATE_ROOT_PATH=/usr/share/igo/addons/reverseproxy
 RUN cp -a /usr/share/igo /usr/share/igo_foss
 
 RUN	groupadd -f igo
-RUN mv /root /foos_root && ln -sf /foos_root /root
+RUN mv /root /root_foss && ln -sf /root_foss /root
 ENTRYPOINT [ "/etc/entrypoint.sh" ]
