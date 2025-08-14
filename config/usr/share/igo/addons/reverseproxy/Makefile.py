@@ -22,7 +22,7 @@ def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
             -e DEVELOPER={developer}\
             -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
-            -v {HOME_FOLDER_PATH}{developer}:/root/ss:Z \
+            -v {HOME_FOLDER_PATH}{developer}:/mine:Z \
             {gen_user_lock.createLabelList(developer, email, portLock)}\
             {DEV_CONT_REMOTE_OPTS}\
         ".split(" ")

@@ -15,7 +15,7 @@ mount --make-rshared /
 # [[ ! -L /var/lib/containers/storage/overlay-images && -d /var/lib/containers/storage/overlay-images ]] && rm -rf /var/lib/containers/storage/overlay-images && ln -sf /var/lib/shared-containers/overlay-images /var/lib/containers/storage/overlay-images
 # [[ ! -L /var/lib/containers/storage/overlay-layers && -d /var/lib/containers/storage/overlay-layers ]] && rm -rf /var/lib/containers/storage/overlay-layers && ln -sf /var/lib/shared-containers/overlay-layers /var/lib/containers/storage/overlay-layers
 
-/root/.local/bin/update-shared >> /tmp/boot.log 2>&1 || true
+/shared/.config/layers/install.sh >> /tmp/boot.log 2>&1 || true
 
 mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
@@ -39,7 +39,7 @@ if [[ -n "${DEV_CONT_ENABLED_ADDONS_LIST:-}" ]]; then
     IFS=';' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
     for addon in "${ADDONS[@]}"; do
         echo "Enable addon: $addon"
-        mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start
+        mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start || true
     done
 fi
 

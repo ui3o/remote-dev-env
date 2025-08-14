@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-set -e
-
-/shared/.config/layers/install.sh

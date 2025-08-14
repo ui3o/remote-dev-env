@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-set -e
-
-/root/ss/.config/layers/install.sh
-

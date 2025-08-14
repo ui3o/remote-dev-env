@@ -18,8 +18,6 @@ var (
 )
 
 type SAMLConfig struct {
-	RedirectParameter string
-	RedirectUrl       string
 	IdpMetadataURL    string
 	EntityID          string
 	CookieName        string

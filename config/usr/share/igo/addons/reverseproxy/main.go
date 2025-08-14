@@ -27,7 +27,12 @@ var (
 	Config            = RuntimeConfig{
 		SAML: &saml.SAMLConf,
 	}
+	RuntimeVar = RuntimeVars{}
 )
+
+type RuntimeVars struct {
+	RedirectParameterWithPrefix string
+}
 
 type UserEnv struct {
 	Storage string `json:"storage"`
@@ -55,8 +60,9 @@ func StringToArray(value string) []string {
 func init() {
 	flag.CommandLine.Init("env_param_reverseproxy", flag.ExitOnError)
 
-	flag.BoolVar(&Config.UseSAMLAuth, "saml", false, "Use saml auth(default is dummy) ")
-	flag.BoolVar(&Config.ReplaceSubdomainToCookie, "replace_subdomain_to_cookie", false, "Use saml auth(default is dummy) ")
+	flag.BoolVar(&Config.UseSAMLAuth, "saml", false, "Use saml auth(default is dummy)")
+	flag.BoolVar(&Config.UseRedirectAuth, "use_redirect_auth", false, "Use redirect auth")
+	flag.BoolVar(&Config.ReplaceSubdomainToCookie, "replace_subdomain_to_cookie", false, "Use saml auth(default is dummy)")
 
 	flag.IntVar(&Config.Port, "port", 10111, "Port(10111)")
 	flag.IntVar(&Config.CookieAge, "age", 3600, "cookie age in sec")
@@ -79,6 +85,8 @@ func init() {
 
 	flag.StringVar(&Config.KeyFile, "server_key", "", "")
 	flag.StringVar(&Config.CertFile, "server_cert", "", "")
+	flag.StringVar(&Config.RedirectParameter, "redirect_parameter", "remote-dev-env-redirect", "")
+	flag.StringVar(&Config.RedirectUrl, "redirect_url", "", "")
 
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")
 	flag.StringVar(&Config.SAML.EntityID, "saml_entityid", "", "")
@@ -88,17 +96,22 @@ func init() {
 	flag.StringVar(&Config.SAML.KeyFile, "saml_keyfile", "", "")
 	flag.StringVar(&Config.SAML.Domain, "saml_domain", "", "")
 	flag.StringVar(&Config.SAML.AuthnNameIDFormat, "saml_authnnameidformat", "", "")
-	flag.StringVar(&Config.SAML.RedirectParameter, "saml_redirect_parameter", "/?remote-dev-env-redirect=", "")
-	flag.StringVar(&Config.SAML.RedirectUrl, "saml_redirect_url", "", "")
 
 	flag.Parse()
 	flagconf.ParseEnv()
 
-	confJson, err := json.MarshalIndent(Config, "", "  ")
-	if err != nil {
+	if confJson, err := json.MarshalIndent(Config, "", "  "); err != nil {
 		log.Println("[INIT] Failed to marshal config to JSON:", err)
 	} else {
 		log.Println("[INIT] RuntimeConfig JSON:", string(confJson))
+	}
+	// set all runtime vars
+	RuntimeVar.RedirectParameterWithPrefix = fmt.Sprintf("/?%s=", Config.RedirectParameter)
+
+	if confJson, err := json.MarshalIndent(RuntimeVar, "", "  "); err != nil {
+		log.Println("[INIT] Failed to marshal RuntimeVar to JSON:", err)
+	} else {
+		log.Println("[INIT] RuntimeVar JSON:", string(confJson))
 	}
 
 	if len(Config.SAML.CookieName) > 0 {
@@ -116,6 +129,16 @@ func init() {
 	}
 	userCreatorInit()
 	userContainerRemoverInit()
+}
+
+func startAuthRedirect(c *gin.Context) {
+	v := url.Values{}
+	schema := "http"
+	if c.Request.TLS != nil {
+		schema = "https"
+	}
+	v.Add(Config.RedirectParameter, schema+"://"+c.Request.Host+c.Request.RequestURI)
+	c.Redirect(http.StatusFound, Config.RedirectUrl+"?"+v.Encode())
 }
 
 func main() {
@@ -144,7 +167,10 @@ func main() {
 
 		if user := readUser(c); !user.IsValid {
 			log.Println(debugHeader(user.Name), "Handle anonymous user")
-			if Config.UseSAMLAuth {
+			if Config.UseRedirectAuth {
+				log.Println("[NONE] readUser Config.UseRedirectAuth start")
+				startAuthRedirect(c)
+			} else if Config.UseSAMLAuth {
 				if strings.HasPrefix(c.Request.URL.Path, "/saml/") {
 					log.Println(debugHeader(user.Name), "SAMLSP handle /saml/")
 					SAMLSP.ServeHTTP(c.Writer, c.Request)
@@ -152,17 +178,11 @@ func main() {
 					_, err := SAMLSP.Session.GetSession(c.Request)
 					log.Println(debugHeader(user.Name), "SAMLSP err >", err)
 					if err == samlsp.ErrNoSession {
-						if strings.HasPrefix(c.Request.RequestURI, Config.SAML.RedirectParameter) {
+						if strings.HasPrefix(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix) {
 							log.Println(debugHeader(user.Name), "SAMLSP HandleStartAuthFlow")
 							SAMLSP.HandleStartAuthFlow(c.Writer, c.Request)
 						} else {
-							v := url.Values{}
-							schema := "http"
-							if c.Request.TLS != nil {
-								schema = "https"
-							}
-							v.Add("remote-dev-env-redirect", schema+"://"+c.Request.Host+c.Request.RequestURI)
-							c.Redirect(http.StatusFound, Config.SAML.RedirectUrl+"?"+v.Encode())
+							startAuthRedirect(c)
 						}
 					}
 				}
@@ -199,11 +219,11 @@ func main() {
 			}
 		} else {
 			modifyAccessFile(c, user.Name)
-			if strings.HasPrefix(c.Request.RequestURI, Config.SAML.RedirectParameter) {
-				escapedQuery := strings.Replace(c.Request.RequestURI, Config.SAML.RedirectParameter, "", 1)
+			if strings.HasPrefix(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix) {
+				escapedQuery := strings.Replace(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix, "", 1)
 				query, err := url.QueryUnescape(escapedQuery)
 				if err != nil {
-					log.Println(debugHeader(user.Name), "can not QueryUnescape the remote-dev-env-redirect")
+					log.Println(debugHeader(user.Name), "can not QueryUnescape the", Config.RedirectParameter)
 				}
 				log.Println(debugHeader(user.Name), "start redirect to:", query)
 				c.Redirect(http.StatusFound, query)

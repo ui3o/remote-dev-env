@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+import socket
+import subprocess
+import os
+import threading
+import json
+from enum import Enum
+# rems
+
+SOCKET_PATH = "/tmp/rce.sock"
+WHITELIST_FILE_NAME = "whitelist.json"
+WHITELIST_FILE = WHITELIST_FILE_NAME
+whitelist_path = os.path.expanduser(f"~/.config/rced/{WHITELIST_FILE_NAME}")
+if os.path.exists(whitelist_path):
+    WHITELIST_FILE = whitelist_path
+
+
+class ExecMode(Enum):
+    THREAD = "thread"
+    MAIN = "main"
+
+
+def msg(type: ExecMode, msg: str = "", uid: str = ""):
+    if uid:
+        print(f"[{type.name}] [{uid}] {msg}")
+    else:
+        print(f"[{type.name}] {msg}")
+
+
+if os.path.exists(SOCKET_PATH):
+    try:
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.connect(SOCKET_PATH)
+        client.close()
+        msg(ExecMode.MAIN, f"rced daemon is already running on {SOCKET_PATH}...")
+        exit(190)
+    except ConnectionRefusedError:
+        os.remove(SOCKET_PATH)
+
+server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+server.bind(SOCKET_PATH)
+server.listen(10)
+msg(ExecMode.MAIN, f"Listening on {SOCKET_PATH}...")
+
+
+def sendall(conn, msg):
+    conn.sendall(json.dumps(msg).encode() + b"\n")
+
+
+def ping_sender(conn, uuid, process: subprocess.Popen):
+    try:
+        while True:
+            sendall(conn, {"ping": True, "uuid": uuid})
+            threading.Event().wait(1)
+    except Exception:
+        process.kill()
+
+
+def handle_client(conn):
+    with conn:
+        try:
+            command = conn.recv(1024).decode().strip()
+            if not command:
+                return
+            remote_command = json.loads(command)
+            msg(ExecMode.THREAD, f"Executing: {command}", remote_command.get("uuid"))
+            if not remote_command.get("cmd"):
+                sendall(conn, {"code": 1, "error": "Empty command"})
+                return
+            with open(WHITELIST_FILE, "r") as f:
+                whitelist_data = json.load(f)
+            if remote_command.get("developer") not in whitelist_data:
+                if remote_command.get("user") not in whitelist_data:
+                    sendall(conn, {"code": 1, "error": "User not allowed"})
+                    return
+
+            # Run the command and stream output
+            env = os.environ.copy()
+            if "env" in remote_command and isinstance(remote_command["env"], dict):
+                env.update(remote_command["env"])
+            process = subprocess.Popen(
+                ["bash", "-c", remote_command.get("cmd")],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=env,
+            )
+            proc = threading.Thread(
+                target=ping_sender, args=(conn, remote_command, process), daemon=True
+            )
+            proc.start()
+
+            if process.stdout is not None:
+                for line in process.stdout:
+                    sendall(conn, {"data": line})
+            else:
+                sendall(conn, {"code": 1, "error": "Failed to capture stdout"})
+
+            process.wait()
+            sendall(conn, {"code": process.returncode})
+            msg(
+                ExecMode.THREAD,
+                f"Command finished with exit code: {process.returncode}",
+                remote_command.get("uuid"),
+            )
+
+        except BrokenPipeError:
+            msg(ExecMode.THREAD, "Client disconnected", remote_command.get("uuid"))
+        except Exception as e:
+            sendall(conn, {"code": 1, "error": str(e)})
+            msg(ExecMode.THREAD, f"Error: {e}", remote_command.get("uuid"))
+
+
+try:
+    while True:
+        conn, _ = server.accept()
+        threading.Thread(target=handle_client, args=(conn,), daemon=True).start()
+except KeyboardInterrupt:
+    msg(ExecMode.MAIN, "Shutting down.")
+finally:
+    server.close()
+    os.remove(SOCKET_PATH)

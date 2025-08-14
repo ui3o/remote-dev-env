@@ -42,6 +42,9 @@ type RuntimeConfig struct {
 	GlobalPortList              []string
 	ReplaceSubdomainToCookie    bool
 	UseSAMLAuth                 bool
+	UseRedirectAuth             bool
+	RedirectParameter           string
+	RedirectUrl                 string
 	SAML                        *saml.SAMLConfig
 }
 

@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+import json
+import socket
+import argparse
+import os
+import uuid
+import sys
+
+SOCKET_PATH = "/tmp/rce.sock"
+
+parser = argparse.ArgumentParser(description="Remote command executor client")
+parser.add_argument(
+    "-e", action="append", help="Environment variable in KEY=VALUE format", default=[]
+)
+parser.add_argument("command", nargs=argparse.REMAINDER, help="Command to execute")
+
+args = parser.parse_args()
+command = " ".join(args.command) if args.command else ""
+remote_command = {
+    "uuid": str(uuid.uuid4()),
+    "env": {},
+    "cmd": command,
+    "user": os.getenv("USER"),
+    "developer": os.getenv("DEVELOPER"),
+}
+for e in args.e:
+    key, value = e.split("=", 1)
+    remote_command["env"][key] = value
+
+try:
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(SOCKET_PATH)
+    client.sendall(json.dumps(remote_command).encode())
+except (ConnectionRefusedError, FileNotFoundError):
+    print(f"no daemon is running on {SOCKET_PATH}...")
+    exit(190)
+
+
+exit_code = None
+buffer = b""
+
+
+def print_msg(msg):
+    print(msg, end="")
+    sys.stdout.flush()
+
+
+try:
+    while True:
+        chunk = client.recv(1024)
+        if not chunk:
+            break
+        buffer += chunk
+        while b"\n" in buffer:
+            line, buffer = buffer.split(b"\n", 1)
+            line_text = line.decode()
+            data = json.loads(line_text)
+
+            if "error" in data:
+                print_msg(f"Error: {data['error']}")
+            elif "ping" in data:
+                pass
+                # print_msg(f"Ping: {data['ping']}")
+            elif "data" in data:
+                print_msg(data["data"])
+            elif "code" in data:
+                exit_code = int(data["code"])
+                break
+
+        if exit_code is not None:
+            break
+
+    client.close()
+    exit(exit_code)
+except KeyboardInterrupt as e:
+    exit(189)
