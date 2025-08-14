@@ -23,7 +23,7 @@ class ConfigModule(Protocol):
     def on_merge(
         self,
         prev_conf_src: str,
-        curr_conf_src: s
+        curr_conf_src: str,
         destination: str,
         execute_merge: Callable[[str, str], None],
         execute: Callable[[str], None],
