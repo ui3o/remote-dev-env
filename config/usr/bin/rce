@@ -61,7 +61,6 @@ try:
                 print_msg(f"Error: {data['error']}")
             elif "ping" in data:
                 pass
-                # print_msg(f"Ping: {data['ping']}")
             elif "data" in data:
                 print_msg(data["data"])
             elif "code" in data:

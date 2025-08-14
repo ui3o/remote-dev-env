@@ -56,6 +56,7 @@ def ping_sender(conn, uuid, process: subprocess.Popen):
             sendall(conn, {"ping": True, "uuid": uuid})
             threading.Event().wait(1)
     except Exception:
+        subprocess.run(["pkill", "-P", str(process.pid)])
         process.kill()
 
 
