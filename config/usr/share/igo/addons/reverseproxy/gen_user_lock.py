@@ -11,17 +11,17 @@ USER_PORT_START = 11000
 
 LOCAL_PORT_LIST = os.getenv(
     "ENV_PARAM_REVERSEPROXY_LOCAL_PORT_LIST",
-    "ADMIN;CODE;RSH;LOCAL1;LOCAL2",
+    "ADMIN,CODE,RSH,LOCAL1,LOCAL2",
 )
 
 GLOBAL_PORT_LIST = os.getenv(
     "ENV_PARAM_REVERSEPROXY_GLOBAL_PORT_LIST",
-    "GRAFANA;GLOBAL1;GLOBAL2",
+    "GRAFANA,GLOBAL1,GLOBAL2",
 )
 
-DEDICATED_LOCAL_NAMES = LOCAL_PORT_LIST.split(";")
+DEDICATED_LOCAL_NAMES = LOCAL_PORT_LIST.split(",")
 DEDICATED_LOCAL_NAMES = [arg.strip() for arg in DEDICATED_LOCAL_NAMES if arg]
-DEDICATED_GLOBAL_NAMES = GLOBAL_PORT_LIST.split(";")
+DEDICATED_GLOBAL_NAMES = GLOBAL_PORT_LIST.split(",")
 DEDICATED_GLOBAL_NAMES = [arg.strip() for arg in DEDICATED_GLOBAL_NAMES if arg]
 
 
@@ -58,7 +58,7 @@ def appendLabel(paramList: list[str], prefix: str, name: str, value: str):
     if prefix:
         prefix = prefix + "_"
     paramList.append(f"-e {prefix.upper()}{name}={value}")
-    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\\\n"
+    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\\\\n"
     # ENV_LIST_EXPORTABLE = (
     #     ENV_LIST_EXPORTABLE + f"export {prefix.upper()}{name}={value}\\n"
     # )

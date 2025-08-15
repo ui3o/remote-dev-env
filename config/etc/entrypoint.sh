@@ -25,7 +25,7 @@ echo root:10000:5000 >/etc/subgid
 # git -C /root merge --allow-unrelated-histories --no-edit  -Xtheirs shared_layers/master >> /tmp/boot.log 2>&1 || true
 # git merge --allow-unrelated-histories --no-edit my_layers/master
 
-echo "# container specific environment variable list" >> /root/.ssh/environment
+echo "# container specific environment variable list" > /root/.ssh/environment
 awk -v t="$ENV_LIST" 'BEGIN{print t}' >> /root/.ssh/environment
 echo PATH=$PATH >> /root/.ssh/environment
 
