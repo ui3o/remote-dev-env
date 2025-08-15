@@ -58,7 +58,7 @@ def appendLabel(paramList: list[str], prefix: str, name: str, value: str):
     if prefix:
         prefix = prefix + "_"
     paramList.append(f"-e {prefix.upper()}{name}={value}")
-    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\\n"
+    ENV_LIST = ENV_LIST + f"{prefix.upper()}{name}={value}\\\n"
     # ENV_LIST_EXPORTABLE = (
     #     ENV_LIST_EXPORTABLE + f"export {prefix.upper()}{name}={value}\\n"
     # )

@@ -50,7 +50,7 @@ func debugHeader(username string) string {
 }
 
 func StringToArray(value string) []string {
-	s := strings.Split(value, ";")
+	s := strings.Split(value, ",")
 	for i := range s {
 		(s)[i] = strings.TrimSpace((s)[i])
 	}
@@ -76,9 +76,9 @@ func init() {
 	flag.StringVar(&Config.AdminAddonDomainPath, "admin_addon_domain_path", "", "")
 
 	var portList string
-	flag.StringVar(&portList, "local_port_list", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD", "ADMIN;CODE;RSH;LOCAL1;LOCAL2;HIDDEN_SSHD;...")
+	flag.StringVar(&portList, "local_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD,...")
 	Config.LocalPortList = StringToArray(portList)
-	flag.StringVar(&portList, "global_port_list", "GRAFANA;GLOBAL1;GLOBAL2", "GRAFANA;PROMETHEUS;LOKI;...")
+	flag.StringVar(&portList, "global_port_list", "GRAFANA,GLOBAL1,GLOBAL2", "GRAFANA,PROMETHEUS,LOKI,...")
 	Config.GlobalPortList = StringToArray(portList)
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")

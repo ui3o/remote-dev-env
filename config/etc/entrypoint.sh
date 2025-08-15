@@ -36,7 +36,7 @@ if [[ "${DEV_CONT_MODE_DISABLE_UNITS:-false}" == "true" ]]; then
 fi
 
 if [[ -n "${DEV_CONT_ENABLED_ADDONS_LIST:-}" ]]; then
-    IFS=';' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
+    IFS=',' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
     for addon in "${ADDONS[@]}"; do
         echo "Enable addon: $addon"
         mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start || true

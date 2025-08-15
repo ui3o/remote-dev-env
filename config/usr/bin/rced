@@ -63,7 +63,7 @@ def ping_sender(conn, uuid, process: subprocess.Popen):
 def handle_client(conn):
     with conn:
         try:
-            command = conn.recv(1024).decode().strip()
+            command = conn.recv(102400).decode().strip()
             if not command:
                 return
             remote_command = json.loads(command)
