@@ -33,17 +33,23 @@ func checkPortIsOpened(userName, port string) error {
 func watchContainerRunning(userName, routeId string) {
 	go func() {
 		cmd := exec.Command("pake", "listenContainerRunning", userName)
+		cmd.Dir = Config.TemplateRootPath + "pake"
 		cmd.Run()
 		log.Println(debugHeader(userName), "Remove ", routeId, " from AllRestEndpoint.Endpoint")
 		delete(AllRestEndpoint[userName].Endpoints, routeId)
 	}()
 }
 
-func runCmd(userName, name string, arg ...string) (string, error) {
+func runPake(userName, name string, arg ...string) (string, error) {
 	cmd := exec.Command(name, arg...)
+	cmd.Dir = Config.TemplateRootPath + "pake"
 	log.Println(debugHeader(userName), "execute command", name, arg)
 	if out, err := cmd.Output(); err != nil {
-		log.Println(debugHeader(userName), "execute", name, arg, " has error:", err)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			log.Println(debugHeader(userName), "execute", name, arg, "stderr:", string(exitErr.Stderr), " has error:", err.Error())
+		} else {
+			log.Println(debugHeader(userName), "execute", name, arg, " has error:", err, "stderr not detected")
+		}
 		return "", err
 	} else {
 		log.Println(debugHeader(userName), "execute", name, arg, " out:", string(out))
@@ -71,7 +77,7 @@ func userContainerRemoverInit() {
 	go func() {
 		for {
 			log.Println("[REMOVER] userContainerRemoverInit running...")
-			runCmd("REMOVER", "pake", "removeIdleUsers", fmt.Sprintf("%d", Config.UserIdleKillAfterTimeout))
+			runPake("REMOVER", "pake", "removeIdleUsers", fmt.Sprintf("%d", Config.UserIdleKillAfterTimeout))
 			time.Sleep(time.Duration(Config.UserIdleCheckInterVal) * time.Minute)
 		}
 	}()
@@ -88,9 +94,9 @@ func userCreatorInit() {
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
-			runCmd(userName, "pake", "start", userName, userEmail)
+			runPake(userName, "pake", "start", userName, userEmail)
 			success := false
-			if out, err := runCmd(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
+			if out, err := runPake(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
 				if err := checkPortIsOpened(userName, out); err == nil {
 					success = true
 					watchContainerRunning(userName, routeId)
