@@ -87,6 +87,7 @@ def load_config_from_path(config_path: str) -> Optional[ConfigModule]:
         module = __import__("config")
         if not os.path.exists(module.root_path + "/.version"):
             init_version(module.root_path)
+        if not os.path.exists(module.root_path + "/.git"):
             init_git(module.root_path)
         return module
     except Exception as e:
@@ -215,7 +216,7 @@ def create_symlinks(link_map: dict[str, str], remove_func=None):
             backup_path = os.path.join(dirname, f"bkp-{basename}")
 
             if remove_func:
-                msg(f"Remove func overwritten by on_remove", LogType.INFO)
+                msg("Remove func overwritten by on_remove", LogType.INFO)
                 remove_func(destination, backup_path, source, execute)
             else:
                 msg(f"Backup path: {backup_path}", LogType.INFO)
@@ -235,7 +236,7 @@ def main():
         msg(f"Config Path: {path}", LogType.INFO)
         conf_module = load_config_from_path(path)
         if not conf_module:
-            msg(f"Default config load failed miserably...", LogType.ERROR)
+            msg("Default config load failed miserably...", LogType.ERROR)
             continue
 
         if (
@@ -249,7 +250,7 @@ def main():
 
     msg(f"Final config dict: {merged_conf}", LogType.INFO)
     create_symlinks(merged_conf, remove_func)
-    msg(f"Linky finished!", LogType.INFO)
+    msg("Linky finished!", LogType.INFO)
 
 
 if __name__ == "__main__":
