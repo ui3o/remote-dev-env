@@ -108,7 +108,7 @@ def read_version(path: str):
         return f.readline().rstrip()
 
 
-def copy_company_conf_src_to_default_config(
+def copy_shared_conf_src_to_default_config(
     merged_conf: dict[str, str], curr_conf: ConfigModule
 ) -> dict[str, str]:
     msg("Default config taking over merged sources", LogType.INFO)
@@ -153,9 +153,9 @@ def merge_conf_sources(
     msg(f"Version of: {curr_conf.root_path} is : {curr_conf_version}", LogType.INFO)
 
     # If current cofig its empty (default/skeleton)
-    # then copy all the sources of previous company sources into the conf
+    # then copy all the sources of previous shared sources into the conf
     # if original_version != curr_conf_version:
-    copy_company_conf_src_to_default_config(merged_conf, curr_conf)
+    copy_shared_conf_src_to_default_config(merged_conf, curr_conf)
 
     for curr_destination, curr_source in curr_conf.config.items():
 
