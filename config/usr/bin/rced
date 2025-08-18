@@ -29,7 +29,7 @@ def msg(type: ExecMode, msg: str = "", uid: str = ""):
     else:
         print(f"[{type.name}] {msg}")
 
-
+subprocess.run(["mkdir", "-p", "/tmp/rce"])
 if os.path.exists(SOCKET_PATH):
     try:
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
