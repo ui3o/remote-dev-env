@@ -7,7 +7,7 @@ import threading
 import json
 from enum import Enum
 
-SOCKET_PATH = "/tmp/rce.sock"
+SOCKET_PATH = "/tmp/rce/rce.sock"
 WHITELIST_FILE_NAME = "whitelist.json"
 
 

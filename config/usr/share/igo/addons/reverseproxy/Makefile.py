@@ -5,7 +5,7 @@ import gen_user_lock
 import time
 
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
-        -v /tmp/rce.sock:/tmp/rce.sock:ro \
+        -v /tmp/rce:/tmp/rce:ro \
         -v r_dev_shared_vol:/var/lib/shared-containers \
         localhost/local-remote-dev-env:latest"
 DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)

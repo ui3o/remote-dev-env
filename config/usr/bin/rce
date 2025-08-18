@@ -7,7 +7,7 @@ import os
 import uuid
 import sys
 
-SOCKET_PATH = "/tmp/rce.sock"
+SOCKET_PATH = "/tmp/rce/rce.sock"
 
 parser = argparse.ArgumentParser(description="Remote command executor client")
 parser.add_argument(
