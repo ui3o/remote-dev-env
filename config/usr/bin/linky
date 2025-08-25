@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 
-from typing import Optional, Protocol, Callable, Dict
 from enum import Enum
 from datetime import datetime
 
@@ -16,31 +15,7 @@ class LogType(Enum):
     RUN = "[RUN]"
 
 
-class ConfigModule(Protocol):
-    root_path: str
-    config: Dict[str, str]
-
-    def on_merge(
-        self,
-        prev_conf_src: str,
-        curr_conf_src: str,
-        destination: str,
-        execute_merge: Callable[[str, str], None],
-        execute: Callable[[str], None],
-    ) -> None:
-        pass
-
-    def on_remove(
-        self,
-        path: str,
-        backup_path: str,
-        src: str,
-        execute: Callable[[str], None],
-    ) -> None:
-        pass
-
-
-def msg(msg: str, log_type: LogType):
+def msg(msg: str, log_type=LogType.INFO):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f" [{timestamp}] {log_type.value} {msg}")
     sys.stdout.flush()
@@ -67,28 +42,18 @@ def update_version(path: str, version: str):
     execute(f"echo {version} > {path}/.version")
 
 
-def load_config_from_path(config_path: str) -> Optional[ConfigModule]:
-    msg("Config path is", LogType.INFO)
+def load_config_from_path(config_path: str):
     if not os.path.isfile(config_path):
         msg(f"No such file: {config_path}", LogType.ERROR)
         return None
 
     config_path = os.path.expanduser(config_path)
     config_dir = os.path.dirname(config_path)
-    config_filename = os.path.basename(config_path)
-
-    if config_filename != "config.py":
-        msg(f"Expected 'config.py', got '{config_filename}'", LogType.ERROR)
-        return None
 
     sys.path.insert(0, config_dir)
 
     try:
         module = __import__("config")
-        if not os.path.exists(module.root_path + "/.version"):
-            init_version(module.root_path)
-        if not os.path.exists(module.root_path + "/.git"):
-            init_git(module.root_path)
         return module
     except Exception as e:
         msg(f"Failed to import config from {config_path}: {e}", LogType.ERROR)
@@ -104,153 +69,81 @@ def execute_merge(target_dest: str, source: str):
 
 
 def read_version(path: str):
-    with open(path, "r") as f:
+    with open(path + "/.version", "r") as f:
         return f.readline().rstrip()
 
 
-def copy_shared_conf_src_to_default_config(
-    merged_conf: dict[str, str], curr_conf: ConfigModule
-) -> dict[str, str]:
-    msg("Default config taking over merged sources", LogType.INFO)
-    merged_root_path = merged_conf.get("root_path")
-
-    for destination, source in merged_conf.items():
-        if (
-            destination == "version"
-            or destination == "root_path"
-            or destination == "curr_conf_root_path"
-        ):
-            continue
-        try:
-            if merged_root_path and source.startswith(merged_root_path):
-                new_default_conf_source = source.replace(
-                    merged_root_path, curr_conf.root_path
-                )
-                new_default_conf_source = os.path.normpath(new_default_conf_source)
-
-                os.makedirs(os.path.dirname(new_default_conf_source), exist_ok=True)
-
-                msg(
-                    f"Creating {source} into >>>> {new_default_conf_source}",
-                    LogType.INFO,
-                )
-                curr_conf.config[destination] = new_default_conf_source
-
-        except Exception as e:
-            msg(f"Error processing {source}: {e}", LogType.ERROR)
-            continue
-
-    return curr_conf.config
+def rsync_files(origin_root: str, target_root: str, abs_path: str):
+    source = origin_root + abs_path
+    destination = target_root + abs_path
+    if os.path.isdir(source):
+        source += "/"
+    msg(f"sync this: source:{source} -> destination:{destination}")
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    execute_merge(source, destination)
 
 
-def merge_conf_sources(
-    merged_conf: dict[str, str], curr_conf: ConfigModule
-) -> dict[str, str]:
-
-    original_version = merged_conf.get("version")
-    curr_conf_root_path = curr_conf.root_path
-    curr_conf_version = read_version(curr_conf_root_path + "/.version")
-    msg(f"Version of: {curr_conf.root_path} is : {curr_conf_version}", LogType.INFO)
-
-    # If current cofig its empty (default/skeleton)
-    # then copy all the sources of previous shared sources into the conf
-    # if original_version != curr_conf_version:
-    copy_shared_conf_src_to_default_config(merged_conf, curr_conf)
-
-    for curr_destination, curr_source in curr_conf.config.items():
-
-        if not os.path.exists(curr_source):
-            msg(f"Source path does not exist: {curr_source}", LogType.WARN)
-            pass
-
-        merged_conf_src = merged_conf.get(curr_destination)
-
-        if merged_conf_src and original_version != curr_conf_version:
-            if os.path.isdir(merged_conf_src):
-                merged_conf_src += "/"
-            if hasattr(curr_conf, "on_merge") and callable(curr_conf.on_merge):
-                msg(
-                    f"Should execute custom merge {merged_conf_src} into {curr_source}",
-                    LogType.INFO,
-                )
-                curr_conf.on_merge(
-                    merged_conf_src,
-                    curr_source,
-                    curr_destination,
-                    execute_merge,
-                    execute,
-                )
-            else:
-                msg(
-                    f"Should execute default merge: {merged_conf_src} into: {curr_source}",
-                    LogType.INFO,
-                )
-                execute_merge(merged_conf_src, curr_source)
-
-        elif merged_conf_src and merged_conf.get("version") == curr_conf_version:
-            msg(
-                f"Should skip this merge: {merged_conf_src} into {curr_source}, because no version changed!",
-                LogType.INFO,
-            )
-            pass
-
-        merged_conf[curr_destination] = curr_source
-    merged_conf["version"] = curr_conf_version
-    merged_conf["curr_conf_root_path"] = curr_conf_root_path
-    merged_conf["root_path"] = curr_conf.root_path
-
-    if original_version:
-        update_version(curr_conf.root_path, original_version)
-    return merged_conf
-
-
-def create_symlinks(link_map: dict[str, str], remove_func=None):
-    del link_map["version"]
-    del link_map["curr_conf_root_path"]
-    del link_map["root_path"]
-
-    for destination, source in link_map.items():
-        if os.path.exists(destination):
-            dirname = os.path.dirname(destination)
-            basename = os.path.basename(destination)
+def create_symlinks(final_conf):
+    for value in final_conf.values():
+        msg(f"value is: {value}")
+        source = value[1]
+        destination = value[0] + source
+        msg(f"Creating symlinks at {source} to => {destination}")
+        if os.path.exists(source):
+            dirname = os.path.dirname(source)
+            basename = os.path.basename(source)
             backup_path = os.path.join(dirname, f"bkp-{basename}")
-
-            if remove_func:
-                msg("Remove func overwritten by on_remove", LogType.INFO)
-                remove_func(destination, backup_path, source, execute)
-            else:
-                msg(f"Backup path: {backup_path}", LogType.INFO)
-                msg(f"destination is: {destination}", LogType.INFO)
-                execute(f"mv -T --backup=numbered {destination} {backup_path}")
+            msg(f"path already exists creating backup")
+            execute(f"mv -T --backup=numbered {source} {backup_path}")
 
         execute(f"mkdir -p {os.path.dirname(destination)}")
-        execute(f"ln -snf {source} {destination}")
+        execute(f"ln -snf {destination} {source}")
 
 
 def main():
     config_path_list = sys.argv[1:]
+
     sys.dont_write_bytecode = True
-    merged_conf = {}
-    remove_func = None
-    for i, path in enumerate(config_path_list):
-        msg(f"Config Path: {path}", LogType.INFO)
+    final_conf = {}
+    for path in config_path_list:
+        msg(f"Config Path: {path}")
         conf_module = load_config_from_path(path)
         if not conf_module:
-            msg("Default config load failed miserably...", LogType.ERROR)
+            msg("Config load failed from: {path}", LogType.ERROR)
             continue
 
-        if (
-            i == len(config_path_list) - 1
-            and hasattr(conf_module, "on_remove")
-            and callable(conf_module.on_remove)
-        ):
-            remove_func = conf_module.on_remove
+        for key in conf_module.__dict__:
+            if not key.startswith("__") and not key.endswith("__"):
+                curr_root_path = conf_module.__dict__[key][0]
+                if not os.path.isdir(f"{curr_root_path}/.git"):
+                    init_git(curr_root_path)
+                if not os.path.isfile(f"{curr_root_path}/.version"):
+                    init_version(curr_root_path)
 
-        merged_conf = merge_conf_sources(merged_conf, conf_module)
+                msg(f"Processing config key: {key}")
+                curr_version = read_version(curr_root_path)
+                updated_version = None
+                for details in final_conf.values():
+                    if details[2] == key:
+                        msg(f"Found matching config: {details}")
+                        prev_root_path = details[0]
+                        match_absolute_path = details[1]
+                        match_version = read_version(prev_root_path)
+                        if match_version != curr_version:
+                            rsync_files(
+                                prev_root_path, curr_root_path, match_absolute_path
+                            )
+                            updated_version = match_version
+                        final_conf[match_absolute_path][0] = curr_root_path
 
-    msg(f"Final config dict: {merged_conf}", LogType.INFO)
-    create_symlinks(merged_conf, remove_func)
-    msg("Linky finished!", LogType.INFO)
+                if updated_version:
+                    update_version(curr_root_path, updated_version)
+                for i, layer in enumerate(conf_module.__dict__[key][1:]):
+                    if layer in conf_module.__dict__[key][i + 2 :]:
+                        msg(f"Duplicate key '{layer}' found in {key}.", LogType.WARN)
+                    else:
+                        final_conf[layer] = [curr_root_path, layer, key]
+    create_symlinks(final_conf)
 
 
 if __name__ == "__main__":
