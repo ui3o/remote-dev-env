@@ -35,12 +35,14 @@ type PortDefinition struct {
 }
 
 type ServerDefinition struct {
-	Running bool
-	Server  *http.Server
+	Running      bool
+	ServerLocal  *http.Server
+	ServerGlobal *http.Server
 }
 
 type PortSet map[string]PortDefinition
 type PortListeningSet map[string]ServerDefinition
+type BlockedSet map[string]bool
 
 func (ps *PortSet) String() string {
 	var ports []string
@@ -73,10 +75,6 @@ func (ps *PortSet) Set(value string) error {
 		Name:     getPortName(port),
 	}
 	return nil
-}
-
-func debugHeader(username string) string {
-	return fmt.Sprintf("[%s] ", username)
 }
 
 func checkPortIsOpened(port string) error {
@@ -113,21 +111,29 @@ func init() {
 	}
 }
 
-func createServer(port string) *http.Server {
-	srv := &http.Server{
+func createServer(port string) []*http.Server {
+	srvLocal := &http.Server{
+		Addr: "localhost:" + port,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(599)
+		}),
+	}
+	srvGlobal := &http.Server{
 		Addr: ":" + port,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(599)
 		}),
 	}
 	go func() {
-		srv.ListenAndServe()
-		// srv.Shutdown(context.Background())
+		srvLocal.ListenAndServe()
 	}()
-	return srv
+	go func() {
+		srvGlobal.ListenAndServe()
+	}()
+	return []*http.Server{srvLocal, srvGlobal}
 }
 
-func findLockedFiles(lockList []string, portSet PortListeningSet) {
+func findLockFiles(lockList []string, portSet PortListeningSet, blockedSet BlockedSet) {
 	lockDir := "/tmp/.runtime/global_ports/"
 	err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -155,8 +161,9 @@ func findLockedFiles(lockList []string, portSet PortListeningSet) {
 					log.Println("Creating server for:", f, "on port:", p)
 					s := createServer(p)
 					sd := ServerDefinition{
-						Running: true,
-						Server:  s,
+						Running:      true,
+						ServerLocal:  s[0],
+						ServerGlobal: s[1],
 					}
 					portSet[p] = sd
 				}
@@ -179,10 +186,10 @@ func findLockedFiles(lockList []string, portSet PortListeningSet) {
 				portSet[p] = sd
 			} else {
 				blockFile := lockDir + Config.Developer + "/" + f + ".blocked"
-
-				log.Println("Server already exists for:", f, "on port:", p)
-				log.Println("Create blocked file:", blockFile)
+				blockedSet[blockFile] = true
 				if _, err := os.Stat(blockFile); err != nil {
+					log.Println("Server already exists for:", f, "on port:", p)
+					log.Println("Create blocked file:", blockFile)
 					f, err := os.Create(blockFile)
 					if err != nil {
 						log.Printf("Failed to create lock file: %v", err)
@@ -207,7 +214,7 @@ func removeLockedFiles(port string) {
 		}
 		if !info.IsDir() && strings.Contains(info.Name(), "."+port+".") {
 			if err := os.Remove(path); err != nil {
-				log.Printf("Failed to remove lock file for reserved port %s: %v", path, err)
+				log.Printf("Failed to remove lock file %s: %v", path, err)
 			}
 
 		}
@@ -229,6 +236,7 @@ func main() {
 		log.Fatalf("Failed to create lock directory: %v", err)
 	}
 	portSet := make(PortListeningSet)
+	blockedSet := make(BlockedSet)
 	for {
 		lockList := []string{}
 		for port, config := range Config.GlobalPortList {
@@ -245,20 +253,40 @@ func main() {
 		}
 		for port := range portSet {
 			portSet[port] = ServerDefinition{
-				Running: false,
-				Server:  portSet[port].Server,
+				Running:      false,
+				ServerLocal:  portSet[port].ServerLocal,
+				ServerGlobal: portSet[port].ServerGlobal,
 			}
 		}
-		findLockedFiles(lockList, portSet)
+		for f := range blockedSet {
+			blockedSet[f] = false
+		}
+
+		findLockFiles(lockList, portSet, blockedSet)
+
 		_portSet := portSet
 		for port := range _portSet {
 			if !_portSet[port].Running {
 				log.Printf("Have to stop internal server on: %v", port)
-				_portSet[port].Server.Shutdown(context.Background())
+				_portSet[port].ServerLocal.Shutdown(context.Background())
+				_portSet[port].ServerGlobal.Shutdown(context.Background())
 				Config.GlobalPortList[port] = PortDefinition{Internal: false, Name: ""}
 				delete(portSet, port)
 			}
 		}
+		_blockedSet := blockedSet
+		for f := range _blockedSet {
+			if !_blockedSet[f] {
+				if _, err := os.Stat(f); err == nil {
+					log.Printf("Remove blocked file: %s", f)
+					if err := os.Remove(f); err != nil {
+						log.Printf("Failed to remove blocked file %s: %v", f, err)
+					}
+				}
+				delete(blockedSet, f)
+			}
+		}
+
 		for _, name := range lockList {
 			lockFile := lockDir + name + ".lock"
 			if _, err := os.Stat(lockFile); err != nil {
