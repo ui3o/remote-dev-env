@@ -110,6 +110,8 @@ WORKDIR /usr/share/igo/addons/reverseproxy
 RUN GOOS=linux go build -o reverseproxy.disabled .
 WORKDIR /usr/share/igo/addons/admin
 RUN GOOS=linux go build -o admin.disabled .
+WORKDIR /usr/share/igo/addons/portlocker
+RUN GOOS=linux go build -o portlocker.disabled .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release
