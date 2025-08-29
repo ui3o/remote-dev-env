@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 func checkPortIsOpened(userName, port string) error {
 	for i := Config.MaxRetryCountForPortOpening; i > 0; i-- {
-		cmd := exec.Command("nc", "-z", "localhost", port)
+		cmd := exec.Command("nc", "-z", AllRestEndpoint[userName].Hostname, port)
 		err := cmd.Run()
 		if err == nil {
 			log.Println(debugHeader(userName), "Port is opened: ", port)
@@ -36,6 +37,9 @@ func watchContainerRunning(userName, routeId string) {
 		cmd.Dir = Config.TemplateRootPath + "pake"
 		cmd.Run()
 		log.Println(debugHeader(userName), "Remove ", routeId, " from AllRestEndpoint.Endpoint")
+		for _, v := range AllRestEndpoint {
+			v.Endpoints[routeId].UnRegister(AllRestEndpoint[userName].Hostname)
+		}
 		delete(AllRestEndpoint[userName].Endpoints, routeId)
 	}()
 }
@@ -94,22 +98,26 @@ func userCreatorInit() {
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
+			hostname, _ := runPake(userName, "pake", "getEndpointHostname", userName)
 			runPake(userName, "pake", "start", userName, userEmail)
 			success := false
-			if out, err := runPake(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
-				if err := checkPortIsOpened(userName, out); err == nil {
+			if port, err := runPake(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
+				if err := checkPortIsOpened(userName, port); err == nil {
 					success = true
 					watchContainerRunning(userName, routeId)
 					if AllRestEndpoint[userName] == nil {
 						AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
 						AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
+						AllRestEndpoint[userName].Hostname = hostname
 					}
 					AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
-						RouteId:    routeId,
-						UserName:   userName,
-						RemoteUrls: []string{fmt.Sprintf("http://localhost:%s", out)},
+						RouteId:  routeId,
+						UserName: userName,
+						Remotes:  make(map[string]*url.URL),
 					}
-					AllRestEndpoint[userName].Endpoints[routeId].Register()
+					for _, v := range AllRestEndpoint {
+						v.Endpoints[routeId].Register(hostname, port)
+					}
 				}
 			}
 			if done, exists := c.Get(userCreationWaiter); exists {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -25,6 +26,7 @@ const (
 
 type AllRestEndpointDefinition struct {
 	Endpoints map[string]*RestEndpointDefinition
+	Hostname  string
 }
 type RuntimeConfig struct {
 	CookieName                  string
@@ -55,10 +57,9 @@ type RouteMatch struct {
 }
 
 type RestEndpointDefinition struct {
-	RouteId    string
-	UserName   string
-	RemoteUrls []string
-	Remotes    map[string]*url.URL
+	RouteId  string
+	UserName string
+	Remotes  map[string]*url.URL
 }
 
 type availableRemote struct {
@@ -107,6 +108,13 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 599 {
+		if !p.tryNextProxyBackend(user, false, c) {
+			c.String(http.StatusBadGateway, "Failed to reach all global backend: %v", err)
+		}
+		return
+	}
+
 	accept := c.Request.Header.Get("Accept")
 
 	// Copy all headers
@@ -276,17 +284,18 @@ func (p *RestEndpointDefinition) tryNextProxyBackend(user *simple.JWTUser, curre
 	return false
 }
 
-func (p *RestEndpointDefinition) Register() {
-	p.Remotes = make(map[string]*url.URL)
-	if p.RemoteUrls != nil {
-		for _, u := range p.RemoteUrls {
-			if url, err := url.Parse(u); err != nil {
-				panic(err)
-			} else {
-				p.Remotes[u] = url
-			}
-		}
+func (p *RestEndpointDefinition) UnRegister(hostname string) {
+	delete(p.Remotes, fmt.Sprintf("http://%s", hostname))
+}
+
+func (p *RestEndpointDefinition) Register(hostname, port string) {
+	uri := fmt.Sprintf("http://%s", hostname)
+	if url, err := url.Parse(uri + ":" + port); err != nil {
+		panic(err)
+	} else {
+		p.Remotes[uri] = url
 	}
+
 }
 
 func (p *RestEndpointDefinition) StartServeProxy(user *simple.JWTUser, c *gin.Context) {

@@ -30,6 +30,17 @@ var (
 	RuntimeVar = RuntimeVars{}
 )
 
+type StringSet []string
+
+func (ps *StringSet) String() string {
+	return strings.Join(*ps, ",")
+}
+
+func (ps *StringSet) Set(value string) error {
+	*ps = append(*ps, value)
+	return nil
+}
+
 type RuntimeVars struct {
 	RedirectParameterWithPrefix string
 }
@@ -47,14 +58,6 @@ const REQ_HEADER_ROUTE_ID = "req-header-route-id"
 
 func debugHeader(username string) string {
 	return fmt.Sprintf("[%s] ", username)
-}
-
-func StringToArray(value string) []string {
-	s := strings.Split(value, ",")
-	for i := range s {
-		(s)[i] = strings.TrimSpace((s)[i])
-	}
-	return s
 }
 
 func init() {
@@ -75,11 +78,12 @@ func init() {
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
 	flag.StringVar(&Config.AdminAddonDomainPath, "admin_addon_domain_path", "", "")
 
-	var portList string
-	flag.StringVar(&portList, "local_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD,...")
-	Config.LocalPortList = StringToArray(portList)
-	flag.StringVar(&portList, "global_port_list", "GRAFANA,GLOBAL1,GLOBAL2", "GRAFANA,PROMETHEUS,LOKI,...")
-	Config.GlobalPortList = StringToArray(portList)
+	localList := StringSet{}
+	Config.LocalPortList = []string{"ADMIN", "CODE", "RSH", "LOCAL1", "HIDDEN_SSHD"}
+	flag.Var(&localList, "local_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD")
+	globalList := StringSet{}
+	Config.GlobalPortList = []string{"GRAFANA", "GLOBAL1", "GLOBAL2"}
+	flag.Var(&globalList, "global_port_list", "GRAFANA,GLOBAL1,GLOBAL2")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
 
@@ -99,6 +103,13 @@ func init() {
 
 	flag.Parse()
 	flagconf.ParseEnv()
+
+	if len(localList) > 0 {
+		Config.LocalPortList = localList
+	}
+	if len(globalList) > 0 {
+		Config.GlobalPortList = globalList
+	}
 
 	if confJson, err := json.MarshalIndent(Config, "", "  "); err != nil {
 		log.Println("[INIT] Failed to marshal config to JSON:", err)

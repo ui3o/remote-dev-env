@@ -125,6 +125,10 @@ def listenContainerRunning(developer: str = "demo"):
     subprocess.run(podmanWatchLogs(developer))
 
 
+# this function checks if the container is running and exit if not
+def getEndpointHostname(developer: str = "demo"):
+    print(f"rdev-{developer}", end="")
+
 # this function returns Port number for RouteNameID
 def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):
     out = subprocess.run(
