@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"strings"
@@ -16,9 +17,9 @@ import (
 	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
 )
 
-func checkPortIsOpened(userName, port string) error {
+func checkPortIsOpened(userName, hostname, port string) error {
 	for i := Config.MaxRetryCountForPortOpening; i > 0; i-- {
-		cmd := exec.Command("nc", "-z", AllRestEndpoint[userName].Hostname, port)
+		cmd := exec.Command("nc", "-z", hostname, port)
 		err := cmd.Run()
 		if err == nil {
 			log.Println(debugHeader(userName), "Port is opened: ", port)
@@ -37,8 +38,11 @@ func watchContainerRunning(userName, routeId string) {
 		cmd.Dir = Config.TemplateRootPath + "pake"
 		cmd.Run()
 		log.Println(debugHeader(userName), "Remove ", routeId, " from AllRestEndpoint.Endpoint")
-		for _, v := range AllRestEndpoint {
-			v.Endpoints[routeId].UnRegister(AllRestEndpoint[userName].Hostname)
+		for _, globalName := range Config.GlobalPortList {
+			AllGlobalEndpoints[globalName].UnRegister(userName)
+			for uname := range AllRestEndpoint {
+				AllRestEndpoint[uname].Endpoints[globalName].Remotes = AllGlobalEndpoints[globalName].Remotes
+			}
 		}
 		delete(AllRestEndpoint[userName].Endpoints, routeId)
 	}()
@@ -98,26 +102,43 @@ func userCreatorInit() {
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
+			globalPortStar, _ := runPake(userName, "pake", "getGlobalPortStart")
+			globalPortStartNumber, _ := strconv.Atoi(strings.TrimSpace(globalPortStar))
 			hostname, _ := runPake(userName, "pake", "getEndpointHostname", userName)
 			runPake(userName, "pake", "start", userName, userEmail)
 			success := false
 			if port, err := runPake(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
-				if err := checkPortIsOpened(userName, port); err == nil {
+				if AllRestEndpoint[userName] == nil {
+					AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
+					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
+					AllRestEndpoint[userName].Hostname = hostname
+				}
+				AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
+					RouteId:  routeId,
+					UserName: userName,
+					Remotes:  make(map[string]*url.URL),
+				}
+				for pos, globalName := range Config.GlobalPortList {
+					if AllGlobalEndpoints[globalName] == nil {
+						AllGlobalEndpoints[globalName] = &RestEndpointDefinition{
+							Remotes: make(map[string]*url.URL),
+						}
+					}
+					for uname := range AllRestEndpoint {
+						AllGlobalEndpoints[globalName].Register(hostname, strconv.Itoa(globalPortStartNumber+pos), uname)
+					}
+					for uname := range AllRestEndpoint {
+						AllRestEndpoint[uname].Endpoints[globalName] = &RestEndpointDefinition{
+							RouteId:  routeId,
+							UserName: userName,
+							Remotes:  AllGlobalEndpoints[globalName].Remotes,
+						}
+					}
+				}
+				if err := checkPortIsOpened(userName, hostname, port); err == nil {
 					success = true
 					watchContainerRunning(userName, routeId)
-					if AllRestEndpoint[userName] == nil {
-						AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
-						AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
-						AllRestEndpoint[userName].Hostname = hostname
-					}
-					AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
-						RouteId:  routeId,
-						UserName: userName,
-						Remotes:  make(map[string]*url.URL),
-					}
-					for _, v := range AllRestEndpoint {
-						v.Endpoints[routeId].Register(hostname, port)
-					}
+					AllRestEndpoint[userName].Endpoints[routeId].Register(hostname, port, userName)
 				}
 			}
 			if done, exists := c.Get(userCreationWaiter); exists {

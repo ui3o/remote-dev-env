@@ -20,11 +20,12 @@ import (
 )
 
 var (
-	SAMLSP            *samlsp.Middleware
-	CreateUserChannel = make(chan *gin.Context)
-	AllRestEndpoint   = make(map[string]*AllRestEndpointDefinition)
-	AllRoutesRegexp   = make(map[string]*RouteMatch)
-	Config            = RuntimeConfig{
+	SAMLSP             *samlsp.Middleware
+	CreateUserChannel  = make(chan *gin.Context)
+	AllRestEndpoint    = make(map[string]*AllRestEndpointDefinition)
+	AllGlobalEndpoints = make(map[string]*RestEndpointDefinition)
+	AllRoutesRegexp    = make(map[string]*RouteMatch)
+	Config             = RuntimeConfig{
 		SAML: &saml.SAMLConf,
 	}
 	RuntimeVar = RuntimeVars{}

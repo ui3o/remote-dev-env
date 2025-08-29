@@ -1,7 +1,6 @@
 import os
 import re
 
-
 # create default
 ENV_LIST = ""
 ENV_LIST_EXPORTABLE = ""
@@ -82,3 +81,6 @@ def createLabelList(user: str, email: str, portStart: int) -> str:
     paramList.append(f"-e ENV_LIST={ENV_LIST}")
     # paramList.append(f"-e ENV_LIST_EXPORTABLE={ENV_LIST_EXPORTABLE}")
     return " ".join(paramList)
+
+def getGlobalPortStart() -> str:
+    return str(GLOBAL_PORT_START)

@@ -110,7 +110,7 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 	defer resp.Body.Close()
 	if resp.StatusCode == 599 {
 		if !p.tryNextProxyBackend(user, false, c) {
-			c.String(http.StatusBadGateway, "Failed to reach all global backend: %v", err)
+			c.String(http.StatusBadGateway, "Failed to reach all global backend for this route")
 		}
 		return
 	}
@@ -185,10 +185,10 @@ func (p *RestEndpointDefinition) serveHTTPRequest(user *simple.JWTUser, target s
 	io.Copy(c.Writer, resp.Body)
 }
 
-func (p *RestEndpointDefinition) serveWebsocket(remoteUrl string, c *gin.Context) {
+func (p *RestEndpointDefinition) serveWebsocket(remoteId string, c *gin.Context) {
 	// Handle WebSocket upgrade
 	var err error
-	host := p.Remotes[remoteUrl].Host
+	host := p.Remotes[remoteId].Host
 	reqHeader := http.Header{
 		"Host": []string{host},
 	}
@@ -284,16 +284,16 @@ func (p *RestEndpointDefinition) tryNextProxyBackend(user *simple.JWTUser, curre
 	return false
 }
 
-func (p *RestEndpointDefinition) UnRegister(hostname string) {
-	delete(p.Remotes, fmt.Sprintf("http://%s", hostname))
+func (p *RestEndpointDefinition) UnRegister(username string) {
+	delete(p.Remotes, username)
 }
 
-func (p *RestEndpointDefinition) Register(hostname, port string) {
-	uri := fmt.Sprintf("http://%s", hostname)
-	if url, err := url.Parse(uri + ":" + port); err != nil {
+func (p *RestEndpointDefinition) Register(hostname, port, username string) {
+	uri := fmt.Sprintf("http://%s:%s", hostname, port)
+	if url, err := url.Parse(uri); err != nil {
 		panic(err)
 	} else {
-		p.Remotes[uri] = url
+		p.Remotes[username] = url
 	}
 
 }
