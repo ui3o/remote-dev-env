@@ -124,8 +124,8 @@ func userCreatorInit() {
 					}
 					for uname := range AllRestEndpoint {
 						AllRestEndpoint[uname].Endpoints[globalName] = &RestEndpointDefinition{
-							RouteId:  routeId,
-							UserName: userName,
+							RouteId:  globalName,
+							UserName: uname,
 							Remotes:  AllGlobalEndpoints[globalName].Remotes,
 						}
 					}
