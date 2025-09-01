@@ -73,6 +73,10 @@ def podmanWatchLogs(developer="demo"):
     p = [*(f"{RCE_PATH}rce podman logs -f rdev-{developer}").split(" ")]
     return [arg for arg in p if arg]
 
+def removeGlobalPortLocks(developer="demo"):
+    p = [*(f"rm -rf /tmp/.runtime/global_ports/{developer}").split(" ")]
+    return [arg for arg in p if arg]
+
 
 def calculateLockNum() -> int:
     out = subprocess.run(portLocksList(), capture_output=True)
@@ -123,6 +127,8 @@ def removeIdleUsers(idleTime: int = 1):
 def listenContainerRunning(developer: str = "demo"):
     logging.info(podmanWatchLogs(developer))
     subprocess.run(podmanWatchLogs(developer))
+    logging.info(removeGlobalPortLocks(developer))
+    subprocess.run(removeGlobalPortLocks(developer))
 
 
 # this function returns container name for developer
