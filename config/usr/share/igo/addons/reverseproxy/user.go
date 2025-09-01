@@ -113,11 +113,6 @@ func userCreatorInit() {
 					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
 					AllRestEndpoint[userName].Hostname = hostname
 				}
-				AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
-					RouteId:  routeId,
-					UserName: userName,
-					Remotes:  make(map[string]*url.URL),
-				}
 				for pos, globalName := range Config.GlobalPortList {
 					if AllGlobalEndpoints[globalName] == nil {
 						AllGlobalEndpoints[globalName] = &RestEndpointDefinition{
@@ -138,6 +133,11 @@ func userCreatorInit() {
 				if err := checkPortIsOpened(userName, hostname, port); err == nil {
 					success = true
 					watchContainerRunning(userName, routeId)
+					AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
+						RouteId:  routeId,
+						UserName: userName,
+						Remotes:  make(map[string]*url.URL),
+					}
 					AllRestEndpoint[userName].Endpoints[routeId].Register(hostname, port, userName)
 				}
 			}
