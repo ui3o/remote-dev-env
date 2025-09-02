@@ -120,7 +120,7 @@ func userCreatorInit() {
 						}
 					}
 					for uname := range AllRestEndpoint {
-						AllGlobalEndpoints[globalName].Register(hostname, strconv.Itoa(globalPortStartNumber+pos), uname)
+						AllGlobalEndpoints[globalName].Register(AllRestEndpoint[uname].Hostname, strconv.Itoa(globalPortStartNumber+pos), uname)
 					}
 					for uname := range AllRestEndpoint {
 						AllRestEndpoint[uname].Endpoints[globalName] = &RestEndpointDefinition{
