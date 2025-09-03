@@ -82,6 +82,7 @@ RUN . /arch;echo [$ARCH] install code-server extensions... && \
 
 COPY ./config/user/ /root/
 VOLUME /var/lib/containers
+VOLUME /var/lib/shared-containers
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 
 RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
