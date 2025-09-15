@@ -38,12 +38,11 @@ const (
 )
 
 type PortDefinition struct {
-	FullName     string
-	Name         string
-	Port         string
-	Opened       bool
-	LocalServer  *http.Server
-	GlobalServer *http.Server
+	FullName string
+	Name     string
+	Port     string
+	Opened   bool
+	Server   *http.Server
 }
 
 type PortSet map[string]PortDefinition
@@ -53,9 +52,8 @@ func (pd PortDefinition) Construct(port, name string) {
 	touchFile(port, Idle)
 }
 
-func (pd PortDefinition) SetServer(LocalServer, GlobalServer *http.Server) {
-	pd.LocalServer = LocalServer
-	pd.GlobalServer = GlobalServer
+func (pd PortDefinition) SetServer(server *http.Server) {
+	pd.Server = server
 	Config.GlobalPortList[pd.Port] = pd
 }
 func (pd PortDefinition) SetOpened(opened bool) {
@@ -64,13 +62,9 @@ func (pd PortDefinition) SetOpened(opened bool) {
 }
 
 func (pd PortDefinition) ShutdownServer() {
-	if pd.LocalServer != nil {
-		pd.LocalServer.Shutdown(context.Background())
-		pd.LocalServer = nil
-	}
-	if pd.GlobalServer != nil {
-		pd.GlobalServer.Shutdown(context.Background())
-		pd.GlobalServer = nil
+	if pd.Server != nil {
+		pd.Server.Shutdown(context.Background())
+		pd.Server = nil
 	}
 	Config.GlobalPortList[pd.Port] = pd
 }
@@ -158,13 +152,9 @@ func init() {
 }
 
 func createServer(port string) {
-	if Config.GlobalPortList[port].LocalServer == nil {
+	if Config.GlobalPortList[port].Server == nil {
 		Config.GlobalPortList[port].SetServer(
 			&http.Server{
-				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(599)
-				}),
-			}, &http.Server{
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(599)
 				}),
@@ -177,16 +167,8 @@ func createServer(port string) {
 			touchFile(port, Block)
 			return
 		}
-		globalListen, err := net.Listen("tcp", ":"+port)
-		if err != nil {
-			// log.Printf("Failed to start global server: %v", err)
-			Config.GlobalPortList[port].ShutdownServer()
-			touchFile(port, Block)
-			return
-		}
 
-		go Config.GlobalPortList[port].LocalServer.Serve(localListen)
-		go Config.GlobalPortList[port].GlobalServer.Serve(globalListen)
+		go Config.GlobalPortList[port].Server.Serve(localListen)
 		removeBlockFiles(port)
 		log.Println("Creating server for:", Config.GlobalPortList[port].Name, "on port:", Config.GlobalPortList[port].Port)
 	}
