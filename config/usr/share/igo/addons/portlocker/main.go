@@ -9,11 +9,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"dario.cat/mergo"
 	"go.senan.xyz/flagconf"
 )
 
@@ -31,30 +31,26 @@ var (
 type LockFileType int
 
 const (
-	Lock LockFileType = iota
+	Idle LockFileType = iota
+	Lock
 	Hold
 	Block
 )
 
 type PortDefinition struct {
-	FullName      string
-	Name          string
-	Port          string
-	NativeOpened  bool
-	VirtualOpened bool
-	LocalServer   *http.Server
-	GlobalServer  *http.Server
+	FullName     string
+	Name         string
+	Port         string
+	Opened       bool
+	LocalServer  *http.Server
+	GlobalServer *http.Server
 }
 
 type PortSet map[string]PortDefinition
 
 func (pd PortDefinition) Construct(port, name string) {
 	Config.GlobalPortList[port] = PortDefinition{Name: name, Port: port, FullName: name + "." + port}
-}
-
-func (pd PortDefinition) SetNativeOpened(opened bool) {
-	pd.NativeOpened = opened
-	Config.GlobalPortList[pd.Port] = pd
+	touchFile(port, Idle)
 }
 
 func (pd PortDefinition) SetServer(LocalServer, GlobalServer *http.Server) {
@@ -62,9 +58,8 @@ func (pd PortDefinition) SetServer(LocalServer, GlobalServer *http.Server) {
 	pd.GlobalServer = GlobalServer
 	Config.GlobalPortList[pd.Port] = pd
 }
-
-func (pd PortDefinition) SetVirtualOpened(virtual bool) {
-	pd.VirtualOpened = virtual
+func (pd PortDefinition) SetOpened(opened bool) {
+	pd.Opened = opened
 	Config.GlobalPortList[pd.Port] = pd
 }
 
@@ -111,18 +106,26 @@ func (ps *PortSet) Set(value string) error {
 	return nil
 }
 
-func isPortOpened(port string) bool {
-	timeout := 50 * time.Millisecond
-	if local, err := net.DialTimeout("tcp", "127.0.0.1:"+port, timeout); err != nil {
-		if global, err := net.DialTimeout("tcp", "0.0.0.0:"+port, timeout); err != nil {
-			return false
-		} else {
-			defer global.Close()
-			return true
-		}
+func checkPortOpened() {
+	cmd := exec.Command("lsof", "-i", "-P")
+	if output, err := cmd.Output(); err != nil {
+		return
 	} else {
-		defer local.Close()
-		return true
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, " (LISTEN)") {
+				command := strings.Split(line, " ")[0]
+				port := strings.Split(strings.Split(line, " (LISTEN)")[0], ":")[1]
+				if _, exists := Config.GlobalPortList[port]; exists {
+					Config.GlobalPortList[port].SetOpened(true)
+					if strings.HasPrefix(command, "portlocke") {
+						touchFile(port, Hold)
+					} else {
+						touchFile(port, Lock)
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -132,6 +135,16 @@ func init() {
 	portSet := make(PortSet)
 	flag.Var(&portSet, "global_port_list", "GRAFANA,PROMETHEUS,LOKI,...")
 	Config.Developer = os.Getenv("DEVELOPER")
+
+	// Remove the lock directory recursively before starting main loop
+	lockDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
+	if err := os.RemoveAll(lockDir); err != nil {
+		log.Fatalf("Failed to remove lock directory recursively: %v", err)
+	}
+	// Create the lock directory
+	if err := os.MkdirAll(lockDir, 0755); err != nil {
+		log.Fatalf("Failed to create lock directory: %v", err)
+	}
 
 	flag.Parse()
 	flagconf.ParseEnv()
@@ -145,7 +158,6 @@ func init() {
 }
 
 func createServer(port string) {
-	Config.GlobalPortList[port].SetVirtualOpened(true)
 	if Config.GlobalPortList[port].LocalServer == nil {
 		Config.GlobalPortList[port].SetServer(
 			&http.Server{
@@ -162,30 +174,35 @@ func createServer(port string) {
 		if err != nil {
 			// log.Printf("Failed to start local server: %v", err)
 			Config.GlobalPortList[port].ShutdownServer()
+			touchFile(port, Block)
 			return
 		}
 		globalListen, err := net.Listen("tcp", ":"+port)
 		if err != nil {
 			// log.Printf("Failed to start global server: %v", err)
 			Config.GlobalPortList[port].ShutdownServer()
+			touchFile(port, Block)
 			return
 		}
 
 		go Config.GlobalPortList[port].LocalServer.Serve(localListen)
 		go Config.GlobalPortList[port].GlobalServer.Serve(globalListen)
+		removeBlockFiles(port)
 		log.Println("Creating server for:", Config.GlobalPortList[port].Name, "on port:", Config.GlobalPortList[port].Port)
 	}
 }
 
-// func findLockFiles(lockList []string, listeningSet PortListeningSet, blockedSet BlockedSet) {
 func findLockFiles() {
 	lockDir := "/tmp/.runtime/global_ports/"
-	err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
+	lockPortList := make(PortSet)
+	if err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".lock") && !strings.Contains(path, Config.Developer) {
+		if !info.IsDir() && !strings.Contains(path, Config.Developer) &&
+			(strings.HasSuffix(info.Name(), ".lock") || strings.HasSuffix(info.Name(), ".block")) {
 			f := strings.TrimSuffix(info.Name(), ".lock")
+			f = strings.TrimSuffix(f, ".block")
 			p := strings.Split(f, ".")[1]
 			name := strings.Split(f, ".")[0]
 
@@ -193,109 +210,113 @@ func findLockFiles() {
 				log.Println("Port", p, "not found in GlobalPortList, have to add new server definition.")
 				Config.GlobalPortList[p].Construct(p, name)
 			}
-			createServer(p)
+			if strings.HasSuffix(info.Name(), ".lock") {
+				lockPortList[p] = Config.GlobalPortList[p]
+				createServer(p)
+			}
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
+		log.Printf("Error during hold file scanning, the path %q: %v\n", lockDir, err)
+	}
+	if err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".block") {
+			f := strings.TrimSuffix(info.Name(), ".block")
+			p := strings.Split(f, ".")[1]
+			if _, exists := lockPortList[p]; !exists {
+				removeBlockFiles(p)
+				if Config.GlobalPortList[p].Opened {
+					touchFile(p, Lock)
+				} else {
+					touchFile(p, Idle)
+				}
+			}
+		}
+		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".lock") {
+			f := strings.TrimSuffix(info.Name(), ".lock")
+			p := strings.Split(f, ".")[1]
+			if !Config.GlobalPortList[p].Opened {
+				touchFile(p, Idle)
+			}
+
+		}
+		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".hold") {
+			f := strings.TrimSuffix(info.Name(), ".hold")
+			p := strings.Split(f, ".")[1]
+			if _, exists := lockPortList[p]; !exists {
+				Config.GlobalPortList[p].ShutdownServer()
+				touchFile(p, Idle)
+			}
+		}
+		return nil
+	}); err != nil {
 		log.Printf("Error walking the path %q: %v\n", lockDir, err)
 	}
 }
 
-func removeLockFiles(port string) {
-	lockDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+func createFile(touchFile, ext string, valid []string, removeOnCreate []string) {
+	isValid := false
+	for _, v := range valid {
+		if _, err := os.Stat(touchFile + "." + v); err == nil {
+			isValid = true
 		}
-		if !info.IsDir() && strings.Contains(info.Name(), "."+port+".") {
-			if err := os.Remove(path); err != nil {
-				log.Printf("Failed to remove lock file %s: %v", path, err)
+	}
+	if !isValid {
+		if _, err := os.Stat(touchFile + "." + ext); err != nil {
+			f, err := os.Create(touchFile + "." + ext)
+			if err != nil {
+				log.Printf("Failed to create file: %v", err)
+			} else {
+				log.Printf("Create file: %v", touchFile+"."+ext)
+				f.Close()
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		log.Printf("Error walking the path %q: %v\n", lockDir, err)
+
+		for _, v := range removeOnCreate {
+			if _, err := os.Stat(touchFile + "." + v); err == nil {
+				if err := os.Remove(touchFile + "." + v); err != nil {
+					log.Printf("Failed to remove lock file %s: %v", touchFile+"."+v, err)
+				}
+			}
+		}
+	}
+}
+
+func removeBlockFiles(port string) {
+	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
+	touchFile := userDir + Config.GlobalPortList[port].FullName + ".block"
+	if _, err := os.Stat(touchFile); err == nil {
+		if err := os.Remove(touchFile); err != nil {
+			log.Printf("Failed to remove block file %s: %v", touchFile, err)
+		}
 	}
 }
 
 func touchFile(port string, fileType LockFileType) {
 	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-
-	touchedFile := userDir + Config.GlobalPortList[port].FullName
+	touchFile := userDir + Config.GlobalPortList[port].FullName
 	switch fileType {
 	case Lock:
-		touchedFile = touchedFile + ".lock"
+		createFile(touchFile, "lock", []string{"block"}, []string{"idle"})
 	case Hold:
-		touchedFile = touchedFile + ".hold"
+		createFile(touchFile, "hold", []string{}, []string{"idle"})
+	case Block:
+		createFile(touchFile, "block", []string{}, []string{"idle", "lock"})
 	default:
-		touchedFile = touchedFile + ".block"
-	}
-
-	if _, err := os.Stat(touchedFile); err != nil {
-		log.Println("Create file:", touchedFile)
-		f, err := os.Create(touchedFile)
-		if err != nil {
-			log.Printf("Failed to create file: %v", err)
-		} else {
-			f.Close()
-		}
+		createFile(touchFile, "idle", []string{}, []string{"block", "lock", "hold"})
 	}
 }
 
 func main() {
-	// Remove the lock directory recursively before starting main loop
-	lockDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	if err := os.RemoveAll(lockDir); err != nil {
-		log.Fatalf("Failed to remove lock directory recursively: %v", err)
-	}
-	// Create the lock directory
-	if err := os.MkdirAll(lockDir, 0755); err != nil {
-		log.Fatalf("Failed to create lock directory: %v", err)
-	}
-
 	for {
-		tmpPortList := make(PortSet)
-		mergo.Merge(&tmpPortList, Config.GlobalPortList)
-		for port, config := range Config.GlobalPortList {
-			if status := isPortOpened(port); status {
-				if !config.VirtualOpened {
-					Config.GlobalPortList[port].SetNativeOpened(true)
-				}
-			} else {
-				if config.NativeOpened {
-					Config.GlobalPortList[port].SetNativeOpened(false)
-					removeLockFiles(port)
-				}
-			}
-			if config.VirtualOpened {
-				Config.GlobalPortList[port].SetVirtualOpened(false)
-			}
+		for port := range Config.GlobalPortList {
+			Config.GlobalPortList[port].SetOpened(false)
 		}
-
+		checkPortOpened()
 		findLockFiles()
-
-		for port, config := range Config.GlobalPortList {
-			if !config.VirtualOpened && config.LocalServer != nil {
-				// Stop the local server if it's running
-				log.Printf("Have to stop internal servers on: %v", port)
-				Config.GlobalPortList[port].ShutdownServer()
-				removeLockFiles(port)
-			}
-			if !config.VirtualOpened && tmpPortList[port].VirtualOpened && config.NativeOpened {
-				removeLockFiles(port)
-			}
-			if config.VirtualOpened && config.LocalServer != nil {
-				touchFile(port, Hold)
-			}
-			if config.NativeOpened {
-				touchFile(port, Lock)
-			}
-			if config.NativeOpened && config.VirtualOpened {
-				touchFile(port, Block)
-			}
-		}
 		time.Sleep(1 * time.Second)
 	}
 }
