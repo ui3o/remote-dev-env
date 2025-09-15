@@ -1,4 +1,4 @@
-module github.com/ui3o/remote-dev-env/admin
+module github.com/ui3o/codebox/admin
 
 go 1.23.0
 

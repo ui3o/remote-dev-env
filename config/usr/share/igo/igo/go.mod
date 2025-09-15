@@ -1,4 +1,4 @@
-module github.com/ui3o/remote-dev-env/igo
+module github.com/ui3o/codebox/igo
 
 go 1.23.0
 

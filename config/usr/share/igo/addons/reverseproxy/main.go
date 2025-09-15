@@ -14,8 +14,8 @@ import (
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
-	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
+	"github.com/ui3o/codebox/reverseproxy/saml"
+	"github.com/ui3o/codebox/reverseproxy/simple"
 	"go.senan.xyz/flagconf"
 )
 
@@ -52,7 +52,7 @@ type UserEnv struct {
 }
 
 const DEFAULT_USERNAME = "zzz"
-const DOMAIN_COOKIE_NAME = "remote-dev-domain"
+const DOMAIN_COOKIE_NAME = "codebox-domain"
 const REQ_HEADER_PROXY_USER_NAME = "req-header-proxy-user-name"
 const REQ_HEADER_PROXY_USER_EMAIL = "req-header-proxy-user-email"
 const REQ_HEADER_ROUTE_ID = "req-header-route-id"
@@ -86,11 +86,11 @@ func init() {
 	Config.GlobalPortList = []string{"GRAFANA", "GLOBAL1", "GLOBAL2"}
 	flag.Var(&globalList, "global_port_list", "GRAFANA,GLOBAL1,GLOBAL2")
 
-	flag.StringVar(&Config.CookieName, "cookie_name", "remote-dev-env", "")
+	flag.StringVar(&Config.CookieName, "cookie_name", "codebox", "")
 
 	flag.StringVar(&Config.KeyFile, "server_key", "", "")
 	flag.StringVar(&Config.CertFile, "server_cert", "", "")
-	flag.StringVar(&Config.RedirectParameter, "redirect_parameter", "remote-dev-env-redirect", "")
+	flag.StringVar(&Config.RedirectParameter, "redirect_parameter", "codebox-redirect", "")
 	flag.StringVar(&Config.RedirectUrl, "redirect_url", "", "")
 
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")

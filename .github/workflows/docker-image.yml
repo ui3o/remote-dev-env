@@ -28,7 +28,7 @@ jobs:
       uses: docker/build-push-action@v4
       with:
         push: true
-        tags: ui3o/remote-dev-env:latest,ui3o/remote-dev-env:${{steps.tag.outputs.tag}}
+        tags: ui3o/codebox:latest,ui3o/codebox:${{steps.tag.outputs.tag}}
         platforms: linux/amd64,linux/arm64        
     # - name: "Docker Hub Description"
     #   uses: peter-evans/dockerhub-description@v3

@@ -14,8 +14,8 @@ import (
 	"github.com/andybalholm/brotli"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
-	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
+	"github.com/ui3o/codebox/reverseproxy/saml"
+	"github.com/ui3o/codebox/reverseproxy/simple"
 )
 
 const (

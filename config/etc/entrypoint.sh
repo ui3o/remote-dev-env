@@ -26,14 +26,14 @@ echo "# container specific environment variable list" > /root/.ssh/environment
 awk -v t="$ENV_LIST" 'BEGIN{print t}' >> /root/.ssh/environment
 echo PATH=$PATH >> /root/.ssh/environment
 
-# check DEV_CONT_MODE_DISABLE_UNITS
-if [[ "${DEV_CONT_MODE_DISABLE_UNITS:-false}" == "true" ]]; then
-    echo "DEV_CONT_MODE_DISABLE_UNITS is set, remove units"
+# check CODEBOX_MODE_DISABLE_UNITS
+if [[ "${CODEBOX_MODE_DISABLE_UNITS:-false}" == "true" ]]; then
+    echo "CODEBOX_MODE_DISABLE_UNITS is set, remove units"
     rm /usr/share/igo/.runtime/units/root
 fi
 
-if [[ -n "${DEV_CONT_ENABLED_ADDONS_LIST:-}" ]]; then
-    IFS=',' read -ra ADDONS <<< "$DEV_CONT_ENABLED_ADDONS_LIST"
+if [[ -n "${CODEBOX_ENABLED_ADDONS_LIST:-}" ]]; then
+    IFS=',' read -ra ADDONS <<< "$CODEBOX_ENABLED_ADDONS_LIST"
     for addon in "${ADDONS[@]}"; do
         echo "Enable addon: $addon"
         mv /usr/share/igo/addons/$addon/$addon.disabled /usr/share/igo/addons/$addon/$addon.start || true

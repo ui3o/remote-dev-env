@@ -1,4 +1,4 @@
-module github.com/ui3o/remote-dev-env/reverseproxy
+module github.com/ui3o/codebox/reverseproxy
 
 go 1.23.0
 

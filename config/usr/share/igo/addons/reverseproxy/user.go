@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ui3o/remote-dev-env/reverseproxy/saml"
-	"github.com/ui3o/remote-dev-env/reverseproxy/simple"
+	"github.com/ui3o/codebox/reverseproxy/saml"
+	"github.com/ui3o/codebox/reverseproxy/simple"
 )
 
 func checkPortIsOpened(userName, hostname, port string) error {

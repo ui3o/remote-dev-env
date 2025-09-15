@@ -8,8 +8,8 @@ RCE_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_RCE_PATH", "")
 PODMAN_REMOTE = "-v r_dev_shared_runtime:/tmp/.runtime \
         -v /tmp/rce:/tmp/rce:ro \
         -v r_dev_shared_vol:/var/lib/shared-containers \
-        localhost/local-remote-dev-env:latest"
-DEV_CONT_REMOTE_OPTS = os.getenv("DEV_CONT_REMOTE_OPTS", PODMAN_REMOTE)
+        localhost/local-codebox:latest"
+CODEBOX_REMOTE_OPTS = os.getenv("CODEBOX_REMOTE_OPTS", PODMAN_REMOTE)
 
 HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
 
@@ -17,20 +17,20 @@ HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
 def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
     # todo list all portRSH, portCODE
     p = f"\
-        {RCE_PATH}rce podman run -d --rm --privileged --name rdev-{developer} --network host\
+        {RCE_PATH}rce podman run -d --rm --privileged --name codebox-user-{developer} --network host\
             --label portLock={portLock}\
             -e DEVELOPER={developer}\
-            -e DEV_CONT_MODE_NO_REVERSEPROXY=true\
+            -e CODEBOX_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
             -v {HOME_FOLDER_PATH}{developer}:/mine:Z \
             {gen_user_lock.createLabelList(developer, email, portLock)}\
-            {DEV_CONT_REMOTE_OPTS}\
+            {CODEBOX_REMOTE_OPTS}\
         ".split(" ")
     return [arg for arg in p if arg]
 
 
 def podmanCheckRun(developer="demo"):
-    p = f"{RCE_PATH}rce podman container --filter=name=rdev-{developer} --format {{.Names}}".split(
+    p = f"{RCE_PATH}rce podman container --filter=name=codebox-user-{developer} --format {{.Names}}".split(
         " "
     )
     return [arg for arg in p if arg]
@@ -39,7 +39,7 @@ def podmanCheckRun(developer="demo"):
 def portLocksList():
     p = [
         *f"\
-        {RCE_PATH}rce podman ps --filter=name=rdev-.* --format {{{{.Labels.portLock}}}}\
+        {RCE_PATH}rce podman ps --filter=name=codebox-user-.* --format {{{{.Labels.portLock}}}}\
         ".split(" ")
     ]
     return [arg for arg in p if arg]
@@ -48,7 +48,7 @@ def portLocksList():
 def runningContainerList():
     p = [
         *f"\
-        {RCE_PATH}rce podman ps --filter=name=rdev-.* --format {{{{.Labels.DEVELOPEREnv}}}}\
+        {RCE_PATH}rce podman ps --filter=name=codebox-user-.* --format {{{{.Labels.DEVELOPEREnv}}}}\
         ".split(" ")
     ]
     return [arg for arg in p if arg]
@@ -57,7 +57,7 @@ def runningContainerList():
 def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
     p = [
         *(
-            f"{RCE_PATH}rce podman ps --filter=name=rdev-"
+            f"{RCE_PATH}rce podman ps --filter=name=codebox-user-"
             + developer
             + " --format {{.Labels.port"
             + portRouteNameId
@@ -70,7 +70,7 @@ def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
 
 
 def podmanWatchLogs(developer="demo"):
-    p = [*(f"{RCE_PATH}rce podman logs -f rdev-{developer}").split(" ")]
+    p = [*(f"{RCE_PATH}rce podman logs -f codebox-user-{developer}").split(" ")]
     return [arg for arg in p if arg]
 
 def removeGlobalPortLocks(developer="demo"):
@@ -118,7 +118,7 @@ def removeIdleUsers(idleTime: int = 1):
             idle_seconds = idleTime * 60
             if time.time() - last_access > idle_seconds:
                 # remove the container if idle
-                subprocess.run([f"{RCE_PATH}rce", "podman", "kill", f"rdev-{user}"])
+                subprocess.run([f"{RCE_PATH}rce", "podman", "kill", f"codebox-user-{user}"])
         except FileNotFoundError:
             pass
 
@@ -133,7 +133,7 @@ def listenContainerRunning(developer: str = "demo"):
 
 # this function returns container name for developer
 def getEndpointHostname(developer: str = "demo"):
-    print(f"rdev-{developer}", end="")
+    print(f"codebox-user-{developer}", end="")
 
 # this function returns global port start number
 def getGlobalPortStart():

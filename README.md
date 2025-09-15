@@ -1,7 +1,7 @@
-# remote-dev-env
+# codebox
 
-[![github repo](https://img.shields.io/badge/github-repo-brightgreen.svg?style=flat)](https://github.com/ui3o/remote-dev-env/)
-[![docker hub repo](https://img.shields.io/badge/docker-hub-blue.svg?style=flat)](https://hub.docker.com/r/ui3o/remote-dev-env)
+[![github repo](https://img.shields.io/badge/github-repo-brightgreen.svg?style=flat)](https://github.com/ui3o/codebox/)
+[![docker hub repo](https://img.shields.io/badge/docker-hub-blue.svg?style=flat)](https://hub.docker.com/r/ui3o/codebox)
 
 Development environmnet for java and nodejs developers.
 

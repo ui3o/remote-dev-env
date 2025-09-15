@@ -1,4 +1,4 @@
-module github.com/ui3o/remote-dev-env/portlocker
+module github.com/ui3o/codebox/portlocker
 
 go 1.23.0
 
