@@ -96,7 +96,7 @@ def create_symlinks(final_conf):
             msg(f"path already exists creating backup")
             execute(f"mv -T --backup=numbered {source} {backup_path}")
 
-        execute(f"mkdir -p {os.path.dirname(destination)}")
+        execute(f"mkdir -p {os.path.dirname(source)}")
         execute(f"ln -snf {destination} {source}")
 
 
