@@ -92,6 +92,7 @@ func init() {
 	flag.StringVar(&Config.CertFile, "server_cert", "", "")
 	flag.StringVar(&Config.RedirectParameter, "redirect_parameter", "codebox-redirect", "")
 	flag.StringVar(&Config.RedirectUrl, "redirect_url", "", "")
+	flag.StringVar(&Config.CDNRootPath, "cdn_root_path", "./", "")
 
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")
 	flag.StringVar(&Config.SAML.EntityID, "saml_entityid", "", "")
@@ -163,9 +164,16 @@ func main() {
 		}
 	}
 
+	cdnRegex := regexp.MustCompile(`^cdn.`)
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.TemplateRootPath + "simple/auth.html")
 	r.NoRoute(func(c *gin.Context) {
+		if cdnRegex.MatchString(c.Request.Host) {
+			// Handle CDN requests
+			serveStaticFiles(c)
+			return
+		}
+
 		accept := c.Request.Header.Get("Accept")
 		documentRequest := false
 		if strings.Contains(accept, "text/html") {

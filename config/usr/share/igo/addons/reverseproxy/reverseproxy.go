@@ -47,6 +47,7 @@ type RuntimeConfig struct {
 	UseRedirectAuth             bool
 	RedirectParameter           string
 	RedirectUrl                 string
+	CDNRootPath                 string
 	SAML                        *saml.SAMLConfig
 }
 
@@ -352,4 +353,8 @@ func findRoute(user *simple.JWTUser, c *gin.Context) {
 	}
 	log.Println(debugHeader(user.Name), "findRoute can not resolve route!!!")
 
+}
+
+func serveStaticFiles(c *gin.Context) {
+	http.StripPrefix("/", http.FileServer(http.Dir(Config.CDNRootPath))).ServeHTTP(c.Writer, c.Request)
 }
