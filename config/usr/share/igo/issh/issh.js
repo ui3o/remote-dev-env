@@ -32,7 +32,8 @@ if (latestLoginDataFile) {
   try {
     const fileContent = fs.readFileSync(latestLoginDataFile, "utf8");
     loginData = JSON.parse(fileContent);
-    const ws = new WebSocket(loginData.domain, {
+    const ws = new WebSocket(process.argv.pop(), {
+      rejectUnauthorized:false,
       headers: {
         Cookie: loginData.cookie,
       },
