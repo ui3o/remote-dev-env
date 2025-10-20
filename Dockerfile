@@ -14,6 +14,7 @@ RUN dnf install -y binutils rsync mandoc ncat \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
     telnet iputils zlib-devel zip musl-gcc
+RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 
 RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch) -o /opt/ttyd && \
     chmod +x /opt/ttyd
