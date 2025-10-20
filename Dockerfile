@@ -13,7 +13,7 @@ RUN dnf install -y binutils rsync mandoc ncat \
     openssh sshd openssl ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
-    telnet iputils zlib-devel zip
+    telnet iputils zlib-devel zip musl-gcc
 
 RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch) -o /opt/ttyd && \
     chmod +x /opt/ttyd
