@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -48,20 +49,21 @@ func watchContainerRunning(userName, routeId string) {
 	}()
 }
 
-func runPake(userName, name string, arg ...string) (string, error) {
+func runPake(userName, name string, arg ...string) (string, int) {
 	cmd := exec.Command(name, arg...)
 	cmd.Dir = Config.TemplateRootPath + "pake"
 	log.Println(debugHeader(userName), "execute command", name, arg)
-	if out, err := cmd.Output(); err != nil {
+	if out, err := cmd.CombinedOutput(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			log.Println(debugHeader(userName), "execute", name, arg, "stderr:", string(exitErr.Stderr), " has error:", err.Error())
+			log.Println(debugHeader(userName), "execute", name, arg, "stderr:", string(out), " has error:", err.Error())
+			return string(out), exitErr.ExitCode()
 		} else {
 			log.Println(debugHeader(userName), "execute", name, arg, " has error:", err, "stderr not detected")
+			return string(out), 127
 		}
-		return "", err
 	} else {
 		log.Println(debugHeader(userName), "execute", name, arg, " out:", string(out))
-		return string(out), nil
+		return string(out), 0
 	}
 }
 
@@ -79,6 +81,24 @@ func modifyAccessFile(c *gin.Context, userName string) {
 		f.Close()
 	}
 	_ = os.Chtimes(filePath, time.Now(), time.Now())
+}
+
+func userWhitelistWatcherInit() {
+	log.Println("[INIT] userWhitelistWatcherInit started...")
+	go func() {
+		for {
+			data, err := os.ReadFile(Config.UserWhitelistConfigPath)
+			if err != nil {
+				log.Println("[WHITELIST] Failed to read whitelist config:", err)
+			}
+			Config.UserWhiteList = make(map[string]bool)
+			err = json.Unmarshal(data, &Config.UserWhiteList)
+			if err != nil {
+				log.Println("[WHITELIST] Failed to parse whitelist config:", err)
+			}
+			time.Sleep(time.Duration(3) * time.Second)
+		}
+	}()
 }
 
 func userContainerRemoverInit() {
@@ -106,8 +126,8 @@ func userCreatorInit() {
 			globalPortStartNumber, _ := strconv.Atoi(strings.TrimSpace(globalPortStar))
 			hostname, _ := runPake(userName, "pake", "getEndpointHostname", userName)
 			runPake(userName, "pake", "start", userName, userEmail)
-			success := false
-			if port, err := runPake(userName, "pake", "getPortForRouteID", userName, routeId); err == nil {
+			var success error = errors.New("this endpoint not available at the moment, if you know it is available please refresh the page")
+			if port, exitCode := runPake(userName, "pake", "getPortForRouteID", userName, routeId); exitCode == 0 {
 				if AllRestEndpoint[userName] == nil {
 					AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
 					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
@@ -131,7 +151,7 @@ func userCreatorInit() {
 					}
 				}
 				if err := checkPortIsOpened(userName, hostname, port); err == nil {
-					success = true
+					success = nil
 					watchContainerRunning(userName, routeId)
 					AllRestEndpoint[userName].Endpoints[routeId] = &RestEndpointDefinition{
 						RouteId:  routeId,
@@ -142,7 +162,7 @@ func userCreatorInit() {
 				}
 			}
 			if done, exists := c.Get(userCreationWaiter); exists {
-				if ch, ok := done.(chan bool); ok {
+				if ch, ok := done.(chan error); ok {
 					ch <- success
 					close(ch)
 				}
@@ -155,18 +175,20 @@ func checkUserRouteId(c *gin.Context) error {
 	userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
 	routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
 	if AllRestEndpoint[userName] == nil || AllRestEndpoint[userName].Endpoints[routeId] == nil {
-		done := make(chan bool, 1)
+		done := make(chan error, 1)
 		// Wrap the context to include a done channel
 		c.Set(userCreationWaiter, done)
 		CreateUserChannel <- c
 		portOpenSuccess := <-done
-		if portOpenSuccess {
-			log.Println(debugHeader(userName), "user creation and port check done successfully")
-			return nil
-		} else {
+		if portOpenSuccess != nil {
 			log.Println(debugHeader(userName), "user creation and port check has error")
-			return errors.New("this endpoint not available at the moment, if you know it is available please refresh the page")
+			return portOpenSuccess
+		} else {
+			log.Println(debugHeader(userName), "user creation and port check done successfully")
 		}
+	}
+	if htmlPage, exitCode := runPake(userName, "pake", "runUrlGuard", c.Request.RequestURI); exitCode == 9 {
+		return errors.New(htmlPage)
 	}
 	return nil
 }

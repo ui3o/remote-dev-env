@@ -93,6 +93,7 @@ func init() {
 	flag.StringVar(&Config.RedirectParameter, "redirect_parameter", "codebox-redirect", "")
 	flag.StringVar(&Config.RedirectUrl, "redirect_url", "", "")
 	flag.StringVar(&Config.CDNRootPath, "cdn_root_path", "./", "")
+	flag.StringVar(&Config.UserWhitelistConfigPath, "user_whitelist_config_path", "./whitelist.json", "")
 
 	flag.StringVar(&Config.SAML.IdpMetadataURL, "saml_idpmetadataurl", "", "")
 	flag.StringVar(&Config.SAML.EntityID, "saml_entityid", "", "")
@@ -142,6 +143,7 @@ func init() {
 	}
 	userCreatorInit()
 	userContainerRemoverInit()
+	userWhitelistWatcherInit()
 }
 
 func startAuthRedirect(c *gin.Context) {
@@ -238,24 +240,30 @@ func main() {
 				}
 			}
 		} else {
-			modifyAccessFile(c, user.Name)
-			if strings.HasPrefix(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix) {
-				escapedQuery := strings.Replace(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix, "", 1)
-				query, err := url.QueryUnescape(escapedQuery)
-				if err != nil {
-					log.Println(debugHeader(user.Name), "can not QueryUnescape the", Config.RedirectParameter)
-				}
-				log.Println(debugHeader(user.Name), "start redirect to:", query)
-				c.Redirect(http.StatusFound, query)
-			} else {
-				log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
-				if len(user.RouteId) > 0 {
-					log.Println(debugHeader(user.Name), "findRoute has found a route")
-					HandleRequest(user, c)
+			if Config.UserWhiteList[user.Name] {
+				modifyAccessFile(c, user.Name)
+				if strings.HasPrefix(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix) {
+					escapedQuery := strings.Replace(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix, "", 1)
+					query, err := url.QueryUnescape(escapedQuery)
+					if err != nil {
+						log.Println(debugHeader(user.Name), "can not QueryUnescape the", Config.RedirectParameter)
+					}
+					log.Println(debugHeader(user.Name), "start redirect to:", query)
+					c.Redirect(http.StatusFound, query)
 				} else {
-					log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
-					return
+					log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
+					if len(user.RouteId) > 0 {
+						log.Println(debugHeader(user.Name), "findRoute has found a route")
+						HandleRequest(user, c)
+					} else {
+						log.Println(debugHeader(user.Name), "No route found for logged in user!!!")
+						return
+					}
 				}
+			} else {
+				log.Println("[WHITELIST] User is NOT in the whitelist, deny access")
+				c.String(http.StatusForbidden, "Access denied. You are not in the user whitelist.")
+				return
 			}
 
 		}
