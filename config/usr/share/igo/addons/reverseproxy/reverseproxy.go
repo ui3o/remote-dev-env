@@ -231,6 +231,7 @@ func (p *RestEndpointDefinition) serveWebsocket(remoteId string, c *gin.Context)
 	log.Println(debugHeader(p.UserName), "WebSocket proxy connected")
 	proxyCopy := func(src, dst *websocket.Conn, errCh chan error) {
 		for {
+			modifyAccessFile(p.UserName)
 			msgType, msg, err := src.ReadMessage()
 			if err != nil {
 				errCh <- err

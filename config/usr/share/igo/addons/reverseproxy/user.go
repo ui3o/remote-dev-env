@@ -67,7 +67,7 @@ func runPake(userName, name string, arg ...string) (string, int) {
 	}
 }
 
-func modifyAccessFile(c *gin.Context, userName string) {
+func modifyAccessFile(userName string) {
 	filePath := fmt.Sprintf("/tmp/.runtime/logins/%s/.access", userName)
 	if err := os.MkdirAll(fmt.Sprintf("/tmp/.runtime/logins/%s", userName), 0755); err != nil {
 		log.Println(debugHeader(userName), "Failed to create directory:", err)
