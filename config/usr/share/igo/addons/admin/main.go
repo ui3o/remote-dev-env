@@ -75,7 +75,7 @@ func main() {
 		case "/static/admin.js":
 			log.Println("load admin.js")
 			c.Header("Content-Type", "application/javascript")
-			c.HTML(200, "admin.js", gin.H{})
+			c.File("static/admin.js")
 		default:
 			log.Println("[ERROR] Not possible to handle this request:", c.Request.URL.Path)
 
