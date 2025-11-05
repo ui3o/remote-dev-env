@@ -140,12 +140,11 @@ def getGlobalPortStart():
     print(f"{gen_user_lock.getGlobalPortStart()}", end="")
 
 # this function returns container name for developer
-def runUrlGuard(url: str = "/?path=/none"):
-    if url.__contains__("force_to_allow=true"):
-        print(f"url: {url}", end="")
-        return   
-    print(f"url fails: {url}", end="")
-    exit(9)
+def runUrlGuard(routeId: str = "NONE", url: str = "/?path=/none"):
+    if url.__contains__("force_to_allow=false"):
+        print(f"<html><body><b>url:</b> {routeId},{url}, run {routeId.lower()}.sh</body></html>", end="")
+        exit(9)
+    print(f"<html><body>url fails: {routeId},{url}, run {routeId.lower()}.sh</body></html>", end="")
 
 # this function returns Port number for RouteNameID
 def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):

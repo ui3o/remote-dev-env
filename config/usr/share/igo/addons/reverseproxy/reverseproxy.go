@@ -324,7 +324,8 @@ func HandleRequest(user *simple.JWTUser, c *gin.Context) {
 		AllRestEndpoint[user.Name].Endpoints[user.RouteId].StartServeProxy(user, c)
 	} else {
 		c.Error(err)
-		c.String(http.StatusInternalServerError, err.Error())
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write([]byte(err.Error()))
 	}
 }
 
