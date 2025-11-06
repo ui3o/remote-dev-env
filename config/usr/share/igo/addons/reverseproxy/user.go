@@ -187,7 +187,7 @@ func checkUserRouteId(c *gin.Context) error {
 			log.Println(debugHeader(userName), "user creation and port check done successfully")
 		}
 	}
-	if htmlPage, exitCode := runPake(userName, "pake", "runUrlGuard", routeId, c.Request.RequestURI); exitCode == 9 {
+	if htmlPage, exitCode := runPake(userName, "pake", "runUrlGuard", userName, routeId, c.Request.RequestURI); exitCode == 9 {
 		return errors.New(htmlPage)
 	}
 	return nil

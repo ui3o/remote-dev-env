@@ -67,7 +67,7 @@ func main() {
 			}
 		case "/ssh":
 			sshdWs(c)
-		case "/static/admin.html":
+		case "/", "/static/admin.html":
 			log.Println("load admin.html")
 			c.HTML(200, "admin.html", gin.H{
 				"template_str": "This is template string!",
