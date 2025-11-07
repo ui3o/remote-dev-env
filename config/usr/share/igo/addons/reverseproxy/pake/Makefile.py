@@ -70,7 +70,7 @@ def portForRouteID(developer="demo", portRouteNameId: str = "NONE"):
 
 
 def podmanWatchLogs(developer="demo"):
-    p = [*(f"{RCE_PATH}rce podman logs -f codebox-user-{developer}").split(" ")]
+    p = [*(f"{RCE_PATH}rce podman attach codebox-user-{developer}").split(" ")]
     return [arg for arg in p if arg]
 
 def removeGlobalPortLocks(developer="demo"):
