@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec dnsmasq -C $DNSMASQ_CONFIG_FILE_PATH --no-daemon
