@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,17 +38,15 @@ const (
 )
 
 type PortDefinition struct {
-	FullName string
-	Name     string
-	Port     string
-	Opened   bool
-	Server   *http.Server
+	Port   string
+	Opened bool
+	Server *http.Server
 }
 
 type PortSet map[string]PortDefinition
 
-func (pd PortDefinition) Construct(port, name string) {
-	Config.GlobalPortList[port] = PortDefinition{Name: name, Port: port, FullName: name + "." + port}
+func (pd PortDefinition) Construct(port string) {
+	Config.GlobalPortList[port] = PortDefinition{Port: port}
 	touchFile(port, Idle)
 }
 
@@ -67,37 +65,6 @@ func (pd PortDefinition) ShutdownServer() {
 		pd.Server = nil
 	}
 	Config.GlobalPortList[pd.Port] = pd
-}
-
-func (ps *PortSet) String() string {
-	var ports []string
-	for name, config := range *ps {
-		ports = append(ports, fmt.Sprintf("%s:%s", name, config.Name))
-	}
-	return strings.Join(ports, ",")
-}
-
-func getPortName(port string) (string, string) {
-	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "PORT_") {
-			parts := strings.SplitN(env, "=", 2)
-			if len(parts) == 2 && parts[1] == port {
-				return strings.Split(parts[0], "_")[1], port
-			}
-		}
-	}
-	return port, port
-}
-
-func (ps *PortSet) Set(value string) error {
-	portEnv := "PORT_" + strings.ToUpper(value)
-	port := os.Getenv(portEnv)
-	if port == "" {
-		return fmt.Errorf("environment variable %s not set", portEnv)
-	}
-	n, p := getPortName(port)
-	Config.GlobalPortList[port].Construct(p, n)
-	return nil
 }
 
 func checkPortOpened() {
@@ -126,8 +93,6 @@ func checkPortOpened() {
 func init() {
 	flag.CommandLine.Init("env_param_portlocker_addon", flag.ExitOnError)
 
-	portSet := make(PortSet)
-	flag.Var(&portSet, "global_port_list", "GRAFANA,PROMETHEUS,LOKI,...")
 	Config.Developer = os.Getenv("DEVELOPER")
 
 	// Remove the lock directory recursively before starting main loop
@@ -138,6 +103,10 @@ func init() {
 	// Create the lock directory
 	if err := os.MkdirAll(lockDir, 0755); err != nil {
 		log.Fatalf("Failed to create lock directory: %v", err)
+	}
+	for i := 9000; i <= 9999; i++ {
+		p := strconv.Itoa(i)
+		Config.GlobalPortList[p].Construct(p)
 	}
 
 	flag.Parse()
@@ -170,7 +139,7 @@ func createServer(port string) {
 
 		go Config.GlobalPortList[port].Server.Serve(localListen)
 		removeBlockFiles(port)
-		log.Println("Creating server for:", Config.GlobalPortList[port].Name, "on port:", Config.GlobalPortList[port].Port)
+		log.Println("Creating server for:", Config.GlobalPortList[port].Port, "on port:", Config.GlobalPortList[port].Port)
 	}
 }
 
@@ -185,12 +154,11 @@ func findLockFiles() {
 			(strings.HasSuffix(info.Name(), ".lock") || strings.HasSuffix(info.Name(), ".block")) {
 			f := strings.TrimSuffix(info.Name(), ".lock")
 			f = strings.TrimSuffix(f, ".block")
-			p := strings.Split(f, ".")[1]
-			name := strings.Split(f, ".")[0]
+			p := strings.Split(f, ".")[0]
 
 			if _, exists := Config.GlobalPortList[p]; !exists {
 				log.Println("Port", p, "not found in GlobalPortList, have to add new server definition.")
-				Config.GlobalPortList[p].Construct(p, name)
+				Config.GlobalPortList[p].Construct(p)
 			}
 			if strings.HasSuffix(info.Name(), ".lock") {
 				lockPortList[p] = Config.GlobalPortList[p]
@@ -207,7 +175,7 @@ func findLockFiles() {
 		}
 		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".block") {
 			f := strings.TrimSuffix(info.Name(), ".block")
-			p := strings.Split(f, ".")[1]
+			p := strings.Split(f, ".")[0]
 			if _, exists := lockPortList[p]; !exists {
 				removeBlockFiles(p)
 				if Config.GlobalPortList[p].Opened {
@@ -219,7 +187,7 @@ func findLockFiles() {
 		}
 		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".lock") {
 			f := strings.TrimSuffix(info.Name(), ".lock")
-			p := strings.Split(f, ".")[1]
+			p := strings.Split(f, ".")[0]
 			if !Config.GlobalPortList[p].Opened {
 				touchFile(p, Idle)
 			}
@@ -227,7 +195,7 @@ func findLockFiles() {
 		}
 		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".hold") {
 			f := strings.TrimSuffix(info.Name(), ".hold")
-			p := strings.Split(f, ".")[1]
+			p := strings.Split(f, ".")[0]
 			if _, exists := lockPortList[p]; !exists {
 				Config.GlobalPortList[p].ShutdownServer()
 				touchFile(p, Idle)
@@ -269,7 +237,7 @@ func createFile(touchFile, ext string, valid []string, removeOnCreate []string) 
 
 func removeBlockFiles(port string) {
 	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	touchFile := userDir + Config.GlobalPortList[port].FullName + ".block"
+	touchFile := userDir + Config.GlobalPortList[port].Port + ".block"
 	if _, err := os.Stat(touchFile); err == nil {
 		if err := os.Remove(touchFile); err != nil {
 			log.Printf("Failed to remove block file %s: %v", touchFile, err)
@@ -279,7 +247,7 @@ func removeBlockFiles(port string) {
 
 func touchFile(port string, fileType LockFileType) {
 	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	touchFile := userDir + Config.GlobalPortList[port].FullName
+	touchFile := userDir + Config.GlobalPortList[port].Port
 	switch fileType {
 	case Lock:
 		createFile(touchFile, "lock", []string{"block"}, []string{"idle"})
