@@ -162,7 +162,7 @@ func main() {
 	}
 	customLocalName := "customNameLocal"
 	AllRoutesRegexp[customLocalName] = &RouteMatch{
-		Regex:    regexp.MustCompile(`^[\-a-zA-Z]*[0-8][0-9]+\.`),
+		Regex:    regexp.MustCompile(`^[\-a-zA-Z]*([0-9]{1,3}\.|[1-8]{1}[0-9]{3,4}\.)`),
 		Id:       customLocalName,
 		IsCustom: true,
 	}
