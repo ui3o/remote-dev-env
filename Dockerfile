@@ -114,6 +114,8 @@ WORKDIR /usr/share/igo/addons/admin
 RUN GOOS=linux go build -o admin.disabled .
 WORKDIR /usr/share/igo/addons/portlocker
 RUN GOOS=linux go build -o portlocker.disabled .
+WORKDIR /usr/share/igo/addons/dnsupdater
+RUN GOOS=linux go build -o dnsupdater.disabled .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release
