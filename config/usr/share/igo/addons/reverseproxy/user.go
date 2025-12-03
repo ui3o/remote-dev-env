@@ -39,13 +39,15 @@ func watchContainerRunning(userName, routeId string) {
 		cmd.Dir = Config.TemplateRootPath + "pake"
 		cmd.Run()
 		log.Println(debugHeader(userName), "Remove ", routeId, " from AllRestEndpoint.Endpoint")
-		for _, globalName := range Config.GlobalPortList {
+		delete(AllRestEndpoint[userName].Endpoints, routeId)
+		hasLocalRoute := len(AllRestEndpoint[userName].Endpoints) > 1000
+		for i := 9000; i <= 9999; i++ {
+			globalName := strconv.Itoa(i)
 			AllGlobalEndpoints[globalName].UnRegister(userName)
-			for uname := range AllRestEndpoint {
-				AllRestEndpoint[uname].Endpoints[globalName].Remotes = AllGlobalEndpoints[globalName].Remotes
+			if !hasLocalRoute {
+				delete(AllRestEndpoint[userName].Endpoints, globalName)
 			}
 		}
-		delete(AllRestEndpoint[userName].Endpoints, routeId)
 	}()
 }
 
@@ -117,30 +119,35 @@ func userCreatorInit() {
 			userName := c.GetHeader(REQ_HEADER_PROXY_USER_NAME)
 			userEmail := c.GetHeader(REQ_HEADER_PROXY_USER_EMAIL)
 			routeId := c.GetHeader(REQ_HEADER_ROUTE_ID)
+			portNumber := c.GetHeader(REQ_HEADER_PORT_NUMBER)
 
 			log.Println(debugHeader(userName), "CREATOR received start")
 			if err := os.MkdirAll(Config.HomeFolderPath+userName, 0755); err != nil {
 				log.Println(debugHeader(userName), "Failed to create home directory for the user:", err)
 			}
-			globalPortStar, _ := runPake(userName, "pake", "getGlobalPortStart")
-			globalPortStartNumber, _ := strconv.Atoi(strings.TrimSpace(globalPortStar))
 			hostname, _ := runPake(userName, "pake", "getEndpointHostname", userName)
 			runPake(userName, "pake", "start", userName, userEmail)
 			var success error = errors.New("this endpoint not available at the moment, if you know it is available please refresh the page")
-			if port, exitCode := runPake(userName, "pake", "getPortForRouteID", userName, routeId); exitCode == 0 {
+			port := portNumber
+			exitCode := 0
+			if portNumber == "" {
+				port, exitCode = runPake(userName, "pake", "getPortForRouteID", userName, routeId)
+			}
+			if exitCode == 0 {
 				if AllRestEndpoint[userName] == nil {
 					AllRestEndpoint[userName] = &AllRestEndpointDefinition{}
 					AllRestEndpoint[userName].Endpoints = make(map[string]*RestEndpointDefinition)
 					AllRestEndpoint[userName].Hostname = hostname
 				}
-				for pos, globalName := range Config.GlobalPortList {
+				for i := 9000; i <= 9999; i++ {
+					globalName := strconv.Itoa(i)
 					if AllGlobalEndpoints[globalName] == nil {
 						AllGlobalEndpoints[globalName] = &RestEndpointDefinition{
 							Remotes: make(map[string]*url.URL),
 						}
 					}
 					for uname := range AllRestEndpoint {
-						AllGlobalEndpoints[globalName].Register(AllRestEndpoint[uname].Hostname, strconv.Itoa(globalPortStartNumber+pos), uname)
+						AllGlobalEndpoints[globalName].Register(AllRestEndpoint[uname].Hostname, strconv.Itoa(i), uname)
 					}
 					for uname := range AllRestEndpoint {
 						AllRestEndpoint[uname].Endpoints[globalName] = &RestEndpointDefinition{
@@ -247,4 +254,38 @@ func readUser(c *gin.Context) *simple.JWTUser {
 	findRoute(&user, c)
 	log.Println(debugHeader(user.Name), "final readUser result", user.ToString())
 	return &user
+}
+func poster(c *gin.Context) {
+	senderParam := c.Query("sender")
+	decodedSender, err := url.QueryUnescape(senderParam)
+	if err != nil {
+		log.Println("Failed to decode 'who' query param:", err)
+		c.String(400, "Invalid 'who' parameter")
+		return
+	}
+	msgParam := c.Query("message")
+	decodedMsg, err := url.QueryUnescape(msgParam)
+	if err != nil {
+		log.Println("Failed to decode 'msg' query param:", err)
+		c.String(400, "Invalid 'msg' parameter")
+		return
+	}
+	usersParam := c.Query("users")
+	decodedUsers, err := url.QueryUnescape(usersParam)
+	if err != nil {
+		log.Println("Failed to decode 'users' query param:", err)
+		c.String(400, "Invalid 'users' parameter")
+		return
+	}
+	runningContainers := []string{}
+	for userName, ep := range AllRestEndpoint {
+		if len(ep.Endpoints) > 0 {
+			runningContainers = append(runningContainers, userName)
+		}
+	}
+	if len(decodedUsers) == 0 {
+		decodedUsers = strings.Join(runningContainers, ",")
+	}
+	runPake(decodedSender, "pake", "poster", decodedSender, decodedMsg, decodedUsers)
+	c.String(200, "Message posted")
 }

@@ -25,6 +25,7 @@ var (
 	AllRestEndpoint    = make(map[string]*AllRestEndpointDefinition)
 	AllGlobalEndpoints = make(map[string]*RestEndpointDefinition)
 	AllRoutesRegexp    = make(map[string]*RouteMatch)
+	CustomNameRegexp   = regexp.MustCompile(`(^[\-a-zA-Z]*)([0-9]+)(\..*)`)
 	Config             = RuntimeConfig{
 		SAML: &saml.SAMLConf,
 	}
@@ -56,6 +57,7 @@ const DOMAIN_COOKIE_NAME = "codebox-domain"
 const REQ_HEADER_PROXY_USER_NAME = "req-header-proxy-user-name"
 const REQ_HEADER_PROXY_USER_EMAIL = "req-header-proxy-user-email"
 const REQ_HEADER_ROUTE_ID = "req-header-route-id"
+const REQ_HEADER_PORT_NUMBER = "req-header-port-number"
 
 func debugHeader(username string) string {
 	return fmt.Sprintf("[%s] ", username)
@@ -79,12 +81,9 @@ func init() {
 	flag.StringVar(&Config.HomeFolderPath, "home_folder_path", "", "")
 	flag.StringVar(&Config.AdminAddonDomainPath, "admin_addon_domain_path", "", "")
 
-	localList := StringSet{}
-	Config.LocalPortList = []string{"ADMIN", "CODE", "RSH", "LOCAL1", "HIDDEN_SSHD"}
-	flag.Var(&localList, "local_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD")
-	globalList := StringSet{}
-	Config.GlobalPortList = []string{"GRAFANA", "GLOBAL1", "GLOBAL2"}
-	flag.Var(&globalList, "global_port_list", "GRAFANA,GLOBAL1,GLOBAL2")
+	namedPortList := StringSet{}
+	Config.NamedPortList = []string{"ADMIN", "CODE", "RSH", "HIDDEN_SSHD"}
+	flag.Var(&namedPortList, "named_port_list", "ADMIN,CODE,RSH,LOCAL1,LOCAL2,HIDDEN_SSHD")
 
 	flag.StringVar(&Config.CookieName, "cookie_name", "codebox", "")
 
@@ -107,11 +106,8 @@ func init() {
 	flag.Parse()
 	flagconf.ParseEnv()
 
-	if len(localList) > 0 {
-		Config.LocalPortList = localList
-	}
-	if len(globalList) > 0 {
-		Config.GlobalPortList = globalList
+	if len(namedPortList) > 0 {
+		Config.NamedPortList = namedPortList
 	}
 
 	if confJson, err := json.MarshalIndent(Config, "", "  "); err != nil {
@@ -157,22 +153,38 @@ func startAuthRedirect(c *gin.Context) {
 }
 
 func main() {
-	ports := append(Config.LocalPortList, Config.GlobalPortList...)
-	for _, port := range ports {
-		port = strings.TrimSpace(port)
-		AllRoutesRegexp[port] = &RouteMatch{
-			Regex: regexp.MustCompile(`^` + strings.ToLower(port) + `.`),
-			Id:    port,
+	for _, portName := range Config.NamedPortList {
+		portName = strings.TrimSpace(portName)
+		AllRoutesRegexp[portName] = &RouteMatch{
+			Regex: regexp.MustCompile(`^` + strings.ToLower(portName) + `\.`),
+			Id:    portName,
 		}
 	}
+	customLocalName := "customNameLocal"
+	AllRoutesRegexp[customLocalName] = &RouteMatch{
+		Regex:    regexp.MustCompile(`^[\-a-zA-Z]*[0-8][0-9]+\.`),
+		Id:       customLocalName,
+		IsCustom: true,
+	}
+	customGlobalName := "customNameGlobal"
+	AllRoutesRegexp[customGlobalName] = &RouteMatch{
+		Regex:    regexp.MustCompile(`^[\-a-zA-Z]*9[0-9]{3}\.`),
+		Id:       customGlobalName,
+		IsCustom: true,
+	}
 
-	cdnRegex := regexp.MustCompile(`^cdn.`)
+	posterRegex := regexp.MustCompile(`^poster\.`)
+	cdnRegex := regexp.MustCompile(`^cdn\.`)
 	r := gin.Default()
 	r.LoadHTMLFiles(Config.TemplateRootPath + "simple/auth.html")
 	r.NoRoute(func(c *gin.Context) {
 		if cdnRegex.MatchString(c.Request.Host) {
 			// Handle CDN requests
 			serveStaticFiles(c)
+			return
+		}
+		if posterRegex.MatchString(c.Request.Host) {
+			poster(c)
 			return
 		}
 
@@ -261,8 +273,8 @@ func main() {
 					}
 				}
 			} else {
-				log.Println("[WHITELIST] User is NOT in the whitelist, deny access")
-				c.String(http.StatusForbidden, "Access denied. You are not in the user whitelist.")
+				log.Println("[WHITELIST] ", user.Name, " is NOT in the whitelist, deny access")
+				c.String(http.StatusForbidden, "Access denied. "+user.Name+" is not in the user whitelist.")
 				return
 			}
 

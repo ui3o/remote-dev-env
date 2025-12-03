@@ -40,8 +40,7 @@ type RuntimeConfig struct {
 	TemplateRootPath            string
 	HomeFolderPath              string
 	AdminAddonDomainPath        string
-	LocalPortList               []string
-	GlobalPortList              []string
+	NamedPortList               []string
 	ReplaceSubdomainToCookie    bool
 	UseSAMLAuth                 bool
 	UseRedirectAuth             bool
@@ -56,6 +55,7 @@ type RuntimeConfig struct {
 type RouteMatch struct {
 	Regex      *regexp.Regexp
 	Id         string
+	IsCustom   bool
 	PreHandler func(ep *RestEndpointDefinition, c *gin.Context)
 }
 
@@ -352,11 +352,16 @@ func findRoute(user *simple.JWTUser, c *gin.Context) {
 		if found {
 			user.RouteId = route.Id
 			c.Request.Header.Add(REQ_HEADER_ROUTE_ID, route.Id)
+			if route.IsCustom {
+				matches := CustomNameRegexp.FindStringSubmatch(user.Host)
+				if len(matches) == 4 {
+					c.Request.Header.Set(REQ_HEADER_PORT_NUMBER, matches[2])
+				}
+			}
 			return
 		}
 	}
 	log.Println(debugHeader(user.Name), "findRoute can not resolve route!!!")
-
 }
 
 func serveStaticFiles(c *gin.Context) {

@@ -13,12 +13,10 @@ CODEBOX_REMOTE_OPTS = os.getenv("CODEBOX_REMOTE_OPTS", PODMAN_REMOTE)
 
 HOME_FOLDER_PATH = os.getenv("ENV_PARAM_REVERSEPROXY_HOME_FOLDER_PATH", "")
 
-
 def podmanStart(developer="demo", email="demo@demo.com", portLock: int = 9000):
     # todo list all portRSH, portCODE
     p = f"\
         {RCE_PATH}rce podman run -d --rm --privileged --name codebox-user-{developer} --network host\
-            --label portLock={portLock}\
             -e DEVELOPER={developer}\
             -e CODEBOX_MODE_NO_REVERSEPROXY=true\
             --mount=type=bind,source=/etc/localtime,target=/etc/localtime,ro\
@@ -33,15 +31,6 @@ def podmanCheckRun(developer="demo"):
     p = f"{RCE_PATH}rce podman container --filter=name=codebox-user-{developer} --format {{.Names}}".split(
         " "
     )
-    return [arg for arg in p if arg]
-
-
-def portLocksList():
-    p = [
-        *f"\
-        {RCE_PATH}rce podman ps --filter=name=codebox-user-.* --format {{{{.Labels.portLock}}}}\
-        ".split(" ")
-    ]
     return [arg for arg in p if arg]
 
 
@@ -78,26 +67,12 @@ def removeGlobalPortLocks(developer="demo"):
     return [arg for arg in p if arg]
 
 
-def calculateLockNum() -> int:
-    out = subprocess.run(portLocksList(), capture_output=True)
-    result = out.stdout.decode().split("\n")
-    result = [arg for arg in result if arg]
-    r = list(range(11100, 14000 + 1, 100))
-    # remove item from r where result is the same
-    r = [port for port in r if str(port) not in result]
-    print(r)
-    if len(r):
-        return r[0]
-    return 0
-
-
 # this is a start function
 def start(developer: str = "demo", email="demo@demo.com"):
     # todo set lock and all ports
-    portLock: int = calculateLockNum()
-    if portLock:
-        logging.info(podmanStart(developer, email, portLock))
-        subprocess.run(podmanStart(developer, email, portLock))
+    portLock: int = 10000
+    logging.info(podmanStart(developer, email, portLock))
+    subprocess.run(podmanStart(developer, email, portLock))
 
 
 # this is a start function
@@ -135,10 +110,6 @@ def listenContainerRunning(developer: str = "demo"):
 def getEndpointHostname(developer: str = "demo"):
     print(f"codebox-user-{developer}", end="")
 
-# this function returns global port start number
-def getGlobalPortStart():
-    print(f"{gen_user_lock.getGlobalPortStart()}", end="")
-
 # this function returns container name for developer
 def runUrlGuard(developer: str = "demo", routeId: str = "NONE", url: str = "/?path=/none"):
     if url.__contains__("force_to_allow=false"):
@@ -153,3 +124,7 @@ def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):
     )
     result = out.stdout.decode().strip()
     print(result, end="")
+
+# this function returns Port number for RouteNameID
+def poster(developer: str = "demo", message: str = "NONE", containers: str = "NONE"):
+    print(f"Poster => developer: {developer}, message: {message}, containers: {containers}", end="")
