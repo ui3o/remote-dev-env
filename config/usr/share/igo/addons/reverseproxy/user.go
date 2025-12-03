@@ -259,15 +259,15 @@ func poster(c *gin.Context) {
 	senderParam := c.Query("sender")
 	decodedSender, err := url.QueryUnescape(senderParam)
 	if err != nil {
-		log.Println("Failed to decode 'who' query param:", err)
-		c.String(400, "Invalid 'who' parameter")
+		log.Println("Failed to decode 'sender' query param:", err)
+		c.String(400, "Invalid 'sender' parameter")
 		return
 	}
 	msgParam := c.Query("message")
 	decodedMsg, err := url.QueryUnescape(msgParam)
 	if err != nil {
-		log.Println("Failed to decode 'msg' query param:", err)
-		c.String(400, "Invalid 'msg' parameter")
+		log.Println("Failed to decode 'message' query param:", err)
+		c.String(400, "Invalid 'message' parameter")
 		return
 	}
 	usersParam := c.Query("users")

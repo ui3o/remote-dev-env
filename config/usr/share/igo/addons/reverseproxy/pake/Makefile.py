@@ -126,5 +126,5 @@ def getPortForRouteID(developer: str = "demo", portRouteNameId: str = "NONE"):
     print(result, end="")
 
 # this function returns Port number for RouteNameID
-def poster(developer: str = "demo", message: str = "NONE", containers: str = "NONE"):
-    print(f"Poster => developer: {developer}, message: {message}, containers: {containers}", end="")
+def poster(developer: str = "demo", message: str = "NONE", users: str = "NONE"):
+    print(f"Poster => developer: {developer}, message: {message}, users: {users}", end="")

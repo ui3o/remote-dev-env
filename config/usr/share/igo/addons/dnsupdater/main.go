@@ -138,9 +138,9 @@ func main() {
 					if dnsGatewayIP != aRecord.A.String() {
 						err = os.WriteFile(Config.ResolvConfPath, []byte("nameserver "+aRecord.A.String()+"\n"), 0644)
 						if err != nil {
-							logger(red("ERR"), "Failed to write "+Config.ResolvConfPath+":", err)
+							logger(red("ERR"), "Failed to update "+Config.ResolvConfPath+":", err)
 						} else {
-							logger(green("DNS"), Config.ResolvConfPath+" copied to "+Config.ResolvConfPath)
+							logger(green("DNS"), Config.ResolvConfPath+" updated with: nameserver "+aRecord.A.String())
 						}
 					}
 					if Config.DebugLevel > 0 {
