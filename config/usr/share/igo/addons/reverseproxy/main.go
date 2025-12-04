@@ -263,9 +263,8 @@ func main() {
 					log.Println(debugHeader(user.Name), "start redirect to:", query)
 					c.Redirect(http.StatusFound, query)
 				} else {
-					log.Println(debugHeader(user.Name), "Handle logged in user and start to findRoute")
+					log.Println(debugHeader(user.Name), "Handle logged in user and start to match route: ", user.RouteId)
 					if len(user.RouteId) > 0 {
-						log.Println(debugHeader(user.Name), "findRoute has found a route")
 						HandleRequest(user, c)
 					} else {
 						log.Println(debugHeader(user.Name), "No route found for logged in user!!!")

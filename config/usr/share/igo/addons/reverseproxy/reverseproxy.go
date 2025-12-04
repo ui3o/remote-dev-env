@@ -351,13 +351,15 @@ func findRoute(user *simple.JWTUser, c *gin.Context) {
 		found := route.Regex.MatchString(user.Host)
 		if found {
 			user.RouteId = route.Id
-			c.Request.Header.Add(REQ_HEADER_ROUTE_ID, route.Id)
 			if route.IsCustom {
 				matches := CustomNameRegexp.FindStringSubmatch(user.Host)
 				if len(matches) == 4 {
+					user.RouteId = matches[2]
 					c.Request.Header.Set(REQ_HEADER_PORT_NUMBER, matches[2])
 				}
 			}
+			c.Request.Header.Add(REQ_HEADER_ROUTE_ID, user.RouteId)
+			log.Println(debugHeader(user.Name), "findRoute found route:", user.RouteId)
 			return
 		}
 	}
