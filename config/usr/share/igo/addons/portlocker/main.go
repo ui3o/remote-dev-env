@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"log"
 	"net"
@@ -10,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,63 +31,69 @@ var (
 type LockFileType int
 
 const (
-	Idle LockFileType = iota
-	Lock
-	Hold
-	Block
+	Idle   LockFileType = iota
+	Mine                // my container using this port
+	Shared              // portlocker hold this port because other user is using it
 )
 
+var LOCAL_IP = "127.0.0.1"
+var GLOBAL_IP = "0.0.0.0"
+
+var LocalIPRegexp = regexp.MustCompile(`.*(127.0.0.1:)(9[0-9]{3}) \(LISTEN\)`)
+var GlobalIPRegexp = regexp.MustCompile(`.*(\*:)(9[0-9]{3}) \(LISTEN\)`)
+
 type PortDefinition struct {
-	Port   string
-	Opened bool
+	Status LockFileType
 	Server *http.Server
 }
 
-type PortSet map[string]PortDefinition
-
-func (pd PortDefinition) Construct(port string) {
-	Config.GlobalPortList[port] = PortDefinition{Port: port}
-	touchFile(port, Idle)
+type PortStatusDefinition struct {
+	LocalServer  *PortDefinition
+	GlobalServer *PortDefinition
 }
 
-func (pd PortDefinition) SetServer(server *http.Server) {
+type PortSet map[string]PortStatusDefinition
+type FileList map[string]map[string]bool
+
+func (pd PortStatusDefinition) Construct(port string) {
+	psd := Config.GlobalPortList[port]
+	psd.LocalServer = &PortDefinition{}
+	psd.GlobalServer = &PortDefinition{}
+	Config.GlobalPortList[port] = psd
+	touchFile(LOCAL_IP+"."+port, Idle)
+	touchFile(GLOBAL_IP+"."+port, Idle)
+}
+
+func (pd *PortDefinition) SetStatus(status LockFileType) {
+	pd.Status = status
+}
+
+func (pd *PortDefinition) SetServer(server *http.Server) {
 	pd.Server = server
-	Config.GlobalPortList[pd.Port] = pd
-}
-func (pd PortDefinition) SetOpened(opened bool) {
-	pd.Opened = opened
-	Config.GlobalPortList[pd.Port] = pd
 }
 
-func (pd PortDefinition) ShutdownServer() {
-	if pd.Server != nil {
-		pd.Server.Shutdown(context.Background())
-		pd.Server = nil
-	}
-	Config.GlobalPortList[pd.Port] = pd
-}
-
-func checkPortOpened() {
+func checkPortOpened() map[string]bool {
+	result := make(map[string]bool)
 	cmd := exec.Command("lsof", "-i", "-P")
-	if output, err := cmd.Output(); err != nil {
-		return
-	} else {
+	if output, err := cmd.Output(); err == nil {
+
 		lines := strings.Split(string(output), "\n")
 		for _, line := range lines {
-			if strings.Contains(line, " (LISTEN)") {
-				command := strings.Split(line, " ")[0]
-				port := strings.Split(strings.Split(line, " (LISTEN)")[0], ":")[1]
-				if _, exists := Config.GlobalPortList[port]; exists {
-					Config.GlobalPortList[port].SetOpened(true)
-					if strings.HasPrefix(command, "portlocke") {
-						touchFile(port, Hold)
-					} else {
-						touchFile(port, Lock)
-					}
+			if !strings.HasPrefix(line, "portlocke") {
+				matches := LocalIPRegexp.FindStringSubmatch(line)
+				if len(matches) == 3 {
+					result[LOCAL_IP+"."+matches[2]] = true
+					continue
+				}
+				matches = GlobalIPRegexp.FindStringSubmatch(line)
+				if len(matches) == 3 {
+					result[GLOBAL_IP+"."+matches[2]] = true
+					continue
 				}
 			}
 		}
 	}
+	return result
 }
 
 func init() {
@@ -95,7 +101,6 @@ func init() {
 
 	Config.Developer = os.Getenv("DEVELOPER")
 
-	// Remove the lock directory recursively before starting main loop
 	lockDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
 	if err := os.RemoveAll(lockDir); err != nil {
 		log.Fatalf("Failed to remove lock directory recursively: %v", err)
@@ -112,161 +117,135 @@ func init() {
 	flag.Parse()
 	flagconf.ParseEnv()
 
-	confJson, err := json.MarshalIndent(Config, "", "  ")
-	if err != nil {
-		log.Println("[INIT] Failed to marshal config to JSON:", err)
-	} else {
-		log.Println("[INIT] RuntimeConfig JSON:", string(confJson))
-	}
 }
 
-func createServer(port string) {
-	if Config.GlobalPortList[port].Server == nil {
-		Config.GlobalPortList[port].SetServer(
-			&http.Server{
-				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(599)
-				}),
-			})
-
-		localListen, err := net.Listen("tcp", "localhost:"+port)
-		if err != nil {
-			// log.Printf("Failed to start local server: %v", err)
-			Config.GlobalPortList[port].ShutdownServer()
-			touchFile(port, Block)
-			return
+func createServer(port string, server *http.Server) *http.Server {
+	if server == nil {
+		srv := &http.Server{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(599)
+			}),
 		}
-
-		go Config.GlobalPortList[port].Server.Serve(localListen)
-		removeBlockFiles(port)
-		log.Println("Creating server for:", Config.GlobalPortList[port].Port, "on port:", Config.GlobalPortList[port].Port)
+		if listen, err := net.Listen("tcp", port); err != nil {
+			srv.Shutdown(context.Background())
+			log.Println("Server is already running: ", port)
+			return nil
+		} else {
+			go srv.Serve(listen)
+			log.Println("Creating server for: ", port)
+			return srv
+		}
 	}
+	return server
 }
 
-func findLockFiles() {
+func collectSharedFiles() FileList {
+	found := make(FileList)
 	lockDir := "/tmp/.runtime/global_ports/"
-	lockPortList := make(PortSet)
 	if err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && !strings.Contains(path, Config.Developer) &&
-			(strings.HasSuffix(info.Name(), ".lock") || strings.HasSuffix(info.Name(), ".block")) {
-			f := strings.TrimSuffix(info.Name(), ".lock")
-			f = strings.TrimSuffix(f, ".block")
-			p := strings.Split(f, ".")[0]
-
-			if _, exists := Config.GlobalPortList[p]; !exists {
-				log.Println("Port", p, "not found in GlobalPortList, have to add new server definition.")
-				Config.GlobalPortList[p].Construct(p)
+		if !info.IsDir() && !strings.Contains(path, Config.Developer) {
+			pathParts := strings.Split(path, "/")
+			user := pathParts[len(pathParts)-2]
+			if _, ok := found[user]; !ok {
+				found[user] = make(map[string]bool)
 			}
-			if strings.HasSuffix(info.Name(), ".lock") {
-				lockPortList[p] = Config.GlobalPortList[p]
-				createServer(p)
-			}
+			found[user][info.Name()] = true
 		}
 		return nil
 	}); err != nil {
-		log.Printf("Error during hold file scanning, the path %q: %v\n", lockDir, err)
+		log.Printf("Error during shared file scanning, the path %q: %v\n", lockDir, err)
 	}
-	if err := filepath.Walk(lockDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".block") {
-			f := strings.TrimSuffix(info.Name(), ".block")
-			p := strings.Split(f, ".")[0]
-			if _, exists := lockPortList[p]; !exists {
-				removeBlockFiles(p)
-				if Config.GlobalPortList[p].Opened {
-					touchFile(p, Lock)
-				} else {
-					touchFile(p, Idle)
-				}
-			}
-		}
-		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".lock") {
-			f := strings.TrimSuffix(info.Name(), ".lock")
-			p := strings.Split(f, ".")[0]
-			if !Config.GlobalPortList[p].Opened {
-				touchFile(p, Idle)
-			}
-
-		}
-		if !info.IsDir() && strings.Contains(path, Config.Developer) && strings.HasSuffix(info.Name(), ".hold") {
-			f := strings.TrimSuffix(info.Name(), ".hold")
-			p := strings.Split(f, ".")[0]
-			if _, exists := lockPortList[p]; !exists {
-				Config.GlobalPortList[p].ShutdownServer()
-				touchFile(p, Idle)
-			}
-		}
-		return nil
-	}); err != nil {
-		log.Printf("Error walking the path %q: %v\n", lockDir, err)
-	}
+	return found
 }
 
-func createFile(touchFile, ext string, valid []string, removeOnCreate []string) {
-	isValid := false
-	for _, v := range valid {
+func findSharedFiles(file string, files FileList, silent bool) bool {
+	for user, userFiles := range files {
+		if _, ok := userFiles[file]; ok {
+			if !silent {
+				log.Printf("%v user has file: %v", user, file)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func createFile(touchFile, ext string, removeOnCreate []string) {
+	if _, err := os.Stat(touchFile + "." + ext); err != nil {
+		f, err := os.Create(touchFile + "." + ext)
+		if err != nil {
+			log.Printf("Failed to create file: %v", err)
+		} else {
+			log.Printf("Create file: %v", touchFile+"."+ext)
+			f.Close()
+		}
+	}
+	for _, v := range removeOnCreate {
 		if _, err := os.Stat(touchFile + "." + v); err == nil {
-			isValid = true
-		}
-	}
-	if !isValid {
-		if _, err := os.Stat(touchFile + "." + ext); err != nil {
-			f, err := os.Create(touchFile + "." + ext)
-			if err != nil {
-				log.Printf("Failed to create file: %v", err)
-			} else {
-				log.Printf("Create file: %v", touchFile+"."+ext)
-				f.Close()
-			}
-		}
-
-		for _, v := range removeOnCreate {
-			if _, err := os.Stat(touchFile + "." + v); err == nil {
-				if err := os.Remove(touchFile + "." + v); err != nil {
-					log.Printf("Failed to remove lock file %s: %v", touchFile+"."+v, err)
-				}
+			if err := os.Remove(touchFile + "." + v); err != nil {
+				log.Printf("Failed to remove file %s: %v", touchFile+"."+v, err)
 			}
 		}
 	}
-}
 
-func removeBlockFiles(port string) {
-	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	touchFile := userDir + Config.GlobalPortList[port].Port + ".block"
-	if _, err := os.Stat(touchFile); err == nil {
-		if err := os.Remove(touchFile); err != nil {
-			log.Printf("Failed to remove block file %s: %v", touchFile, err)
-		}
-	}
 }
 
 func touchFile(port string, fileType LockFileType) {
 	userDir := "/tmp/.runtime/global_ports/" + Config.Developer + "/"
-	touchFile := userDir + Config.GlobalPortList[port].Port
+	touchFile := userDir + port
 	switch fileType {
-	case Lock:
-		createFile(touchFile, "lock", []string{"block"}, []string{"idle"})
-	case Hold:
-		createFile(touchFile, "hold", []string{}, []string{"idle"})
-	case Block:
-		createFile(touchFile, "block", []string{}, []string{"idle", "lock"})
+	case Shared:
+		createFile(touchFile, "shared", []string{"idle"})
+	case Mine:
+		createFile(touchFile, "mine", []string{"idle"})
 	default:
-		createFile(touchFile, "idle", []string{}, []string{"block", "lock", "hold"})
+		createFile(touchFile, "idle", []string{"shared", "mine"})
+	}
+}
+
+func checkPort(openedPorts map[string]bool, files FileList, ip, port string, portDef *PortDefinition) {
+	ipFileName := ip + "." + port
+	switch portDef.Status {
+	case Idle:
+		if _, ok := openedPorts[ipFileName]; ok {
+			portDef.SetStatus(Mine)
+			touchFile(ipFileName, Mine)
+			break
+		}
+		if findSharedFiles(ipFileName+".mine", files, false) {
+			portDef.SetStatus(Shared)
+			touchFile(ipFileName, Shared)
+			portDef.SetServer(
+				createServer(ip+":"+port, portDef.Server))
+		}
+	case Shared:
+		if !findSharedFiles(ipFileName+".mine", files, true) {
+			portDef.SetStatus(Idle)
+			touchFile(ipFileName, Idle)
+			if portDef.Server != nil {
+				portDef.Server.Shutdown(context.Background())
+				portDef.SetServer(nil)
+			}
+		}
+	case Mine:
+		if _, ok := openedPorts[ipFileName]; !ok {
+			portDef.SetStatus(Idle)
+			touchFile(ipFileName, Idle)
+		}
 	}
 }
 
 func main() {
 	for {
+		openedPorts := checkPortOpened()
+		files := collectSharedFiles()
 		for port := range Config.GlobalPortList {
-			Config.GlobalPortList[port].SetOpened(false)
+			checkPort(openedPorts, files, LOCAL_IP, port, Config.GlobalPortList[port].LocalServer)
+			checkPort(openedPorts, files, GLOBAL_IP, port, Config.GlobalPortList[port].GlobalServer)
 		}
-		checkPortOpened()
-		findLockFiles()
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
