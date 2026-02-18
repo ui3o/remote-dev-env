@@ -252,7 +252,7 @@ func main() {
 				}
 			}
 		} else {
-			if Config.UserWhiteList[user.Name] {
+			if len(Config.UserWhiteList[user.Name]) > 0 {
 				modifyAccessFile(user.Name)
 				if strings.HasPrefix(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix) {
 					escapedQuery := strings.Replace(c.Request.RequestURI, RuntimeVar.RedirectParameterWithPrefix, "", 1)

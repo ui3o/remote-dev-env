@@ -47,7 +47,7 @@ type RuntimeConfig struct {
 	RedirectParameter           string
 	RedirectUrl                 string
 	UserWhitelistConfigPath     string
-	UserWhiteList               map[string]bool
+	UserWhiteList               map[string]string
 	CDNRootPath                 string
 	SAML                        *saml.SAMLConfig
 }

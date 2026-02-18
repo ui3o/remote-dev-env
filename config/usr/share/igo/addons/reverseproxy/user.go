@@ -93,7 +93,7 @@ func userWhitelistWatcherInit() {
 			if err != nil {
 				log.Println("[WHITELIST] Failed to read whitelist config:", err)
 			}
-			Config.UserWhiteList = make(map[string]bool)
+			Config.UserWhiteList = make(map[string]string)
 			err = json.Unmarshal(data, &Config.UserWhiteList)
 			if err != nil {
 				log.Println("[WHITELIST] Failed to parse whitelist config:", err)

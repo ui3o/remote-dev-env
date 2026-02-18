@@ -1,4 +1,4 @@
 {
-    "foo": true,
-    "bar": true
+    "foo": "allowed",
+    "bar": ""
 }
