@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import shlex
 import subprocess
 import sys
 
@@ -24,6 +25,10 @@ def msg(msg: str, log_type=LogType.INFO):
 def execute(cmd: str):
     msg(cmd, LogType.RUN)
     subprocess.run(cmd, shell=True)
+
+
+def shell_quote(value: str):
+    return shlex.quote(value)
 
 
 def init_version(path: str):
@@ -64,23 +69,44 @@ def load_config_from_path(config_path: str):
             del sys.modules["config"]
 
 
-def execute_merge(target_dest: str, source: str):
-    execute(f"rsync -a {target_dest} {source}")
+def parse_layer_entry(layer_entry: str):
+    if not isinstance(layer_entry, str):
+        return ("soft", layer_entry)
+
+    stripped_entry = layer_entry.strip()
+    for prefix, mode in (("-h", "hard"), ("-s", "soft")):
+        if stripped_entry.startswith(prefix):
+            return (mode, stripped_entry[len(prefix) :].strip())
+
+    return ("soft", stripped_entry)
+
+
+def execute_merge(source: str, destination: str, sync_mode: str):
+    rsync_args = ["rsync", "-a"]
+    if sync_mode == "hard":
+        rsync_args.append("--delete")
+
+    rsync_args.extend([source, destination])
+    execute(" ".join(shell_quote(arg) for arg in rsync_args))
 
 
 def read_version(path: str):
-    with open(path + "/.version", "r") as f:
+    with open(path + "/.version", "r", encoding="utf-8") as f:
         return f.readline().rstrip()
 
 
-def rsync_files(origin_root: str, target_root: str, abs_path: str):
+def rsync_files(origin_root: str, target_root: str, abs_path: str, sync_mode: str):
     source = origin_root + abs_path
     destination = target_root + abs_path
     if os.path.isdir(source):
         source += "/"
-    msg(f"sync this: source:{source} -> destination:{destination}")
+    msg(f"sync this ({sync_mode}): source:{source} -> destination:{destination}")
     os.makedirs(os.path.dirname(destination), exist_ok=True)
-    execute_merge(source, destination)
+    execute_merge(source, destination, sync_mode)
+
+
+def layer_exists(root_path: str, abs_path: str) -> bool:
+    return os.path.exists(root_path + abs_path)
 
 
 def create_symlinks(final_conf):
@@ -93,7 +119,7 @@ def create_symlinks(final_conf):
             dirname = os.path.dirname(source)
             basename = os.path.basename(source)
             backup_path = os.path.join(dirname, f"bkp-{basename}")
-            msg(f"path already exists creating backup")
+            msg("path already exists creating backup")
             execute(f"mv -T --backup=numbered {source} {backup_path}")
 
         execute(f"mkdir -p {os.path.dirname(source)}")
@@ -101,19 +127,15 @@ def create_symlinks(final_conf):
 
 
 def clean_up(cleanup_paths: list[str]):
+    msg(f"Starting cleanup with paths: {cleanup_paths}")
     destination_root = cleanup_paths[0]
     source = cleanup_paths[1:]
     user_name = os.getenv("DEVELOPER", "unknown-user")
 
     for path in source:
-        if os.path.exists(path):
-            destination_folder = os.path.join(destination_root, user_name, os.path.dirname(path).lstrip("/"))
-            os.makedirs(destination_folder, exist_ok=True)
-            msg(f"Move {path} to {destination_folder}", LogType.INFO)
-            execute(f"mv {path} {destination_folder}")
-        else:
-            msg(f"Path not found: {path}", LogType.WARN)
-
+        destination_folder = os.path.join(destination_root, user_name, os.path.dirname(path).lstrip("/"))
+        os.makedirs(destination_folder, exist_ok=True)
+        execute(f"mv {path} {destination_folder}")
 
 
 def main():
@@ -129,8 +151,6 @@ def main():
             continue
 
         for key in conf_module.__dict__:
-            if key == "__presync_cleanup__":
-                clean_up(conf_module.__dict__[key][0:])
             if not key.startswith("__") and not key.endswith("__"):
                 curr_root_path = conf_module.__dict__[key][0]
                 if not os.path.isdir(f"{curr_root_path}/.git"):
@@ -141,28 +161,40 @@ def main():
                 msg(f"Processing config key: {key}")
                 curr_version = read_version(curr_root_path)
                 updated_version = None
+                current_layers = [parse_layer_entry(layer) for layer in conf_module.__dict__[key][1:]]
+                current_layer_modes = {path: mode for mode, path in current_layers}
                 for details in final_conf.values():
                     if details[2] == key:
                         msg(f"Found matching config: {details}")
                         prev_root_path = details[0]
                         match_absolute_path = details[1]
+                        match_sync_mode = details[3]
+                        if current_layer_modes.get(match_absolute_path) == "hard":
+                            match_sync_mode = "hard"
                         match_version = read_version(prev_root_path)
-                        if match_version != curr_version:
-                            rsync_files(prev_root_path, curr_root_path, match_absolute_path)
+                        destination_missing = not layer_exists(curr_root_path, match_absolute_path)
+                        rsync_files(prev_root_path, curr_root_path, match_absolute_path, match_sync_mode)
+                        if match_version != curr_version or destination_missing:
                             updated_version = match_version
                         final_conf[match_absolute_path][0] = curr_root_path
 
                 if updated_version:
                     update_version(curr_root_path, updated_version)
-                for i, layer in enumerate(conf_module.__dict__[key][1:]):
-                    if layer in conf_module.__dict__[key][i + 2 :]:
-                        msg(f"Duplicate key '{layer}' found in {key}.", LogType.WARN)
+                for i, (sync_mode, layer_path) in enumerate(current_layers):
+                    if layer_path in [entry[1] for entry in current_layers[i + 1 :]]:
+                        msg(f"Duplicate key '{layer_path}' found in {key}.", LogType.WARN)
                     else:
-                        final_conf[layer] = [curr_root_path, layer, key]
-        for key in conf_module.__dict__:
-            if key == "__postsync_cleanup__":
-                clean_up(conf_module.__dict__[key][0:])
+                        final_conf[layer_path] = [curr_root_path, layer_path, key, sync_mode]
     create_symlinks(final_conf)
+    for path in config_path_list:
+        msg(f"Processing cleanup for config: {path}")
+        conf_module = load_config_from_path(path)
+        if not conf_module:
+            msg("Config load failed from: {path}", LogType.ERROR)
+            continue
+        for key in conf_module.__dict__:
+            if key == "__cleanup__":
+                clean_up(conf_module.__dict__[key][0:])
 
 
 if __name__ == "__main__":

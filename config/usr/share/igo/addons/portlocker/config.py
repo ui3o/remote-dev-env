@@ -2,7 +2,7 @@ conf = {
     "timer": 0,
     "start": {
         "restartCount": 0,
-        "wd": "/usr/share/igo/addons/admin",
+        "wd": "/usr/share/igo/addons/portlocker",
         "envs": {},
         "params": [],
     },
