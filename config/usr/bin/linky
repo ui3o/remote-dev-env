@@ -173,9 +173,14 @@ def main():
                             match_sync_mode = "hard"
                         match_version = read_version(prev_root_path)
                         destination_missing = not layer_exists(curr_root_path, match_absolute_path)
-                        rsync_files(prev_root_path, curr_root_path, match_absolute_path, match_sync_mode)
-                        if match_version != curr_version or destination_missing:
+                        should_sync = match_version != curr_version or destination_missing
+                        if should_sync:
+                            rsync_files(prev_root_path, curr_root_path, match_absolute_path, match_sync_mode)
                             updated_version = match_version
+                        else:
+                            msg(
+                                f"Skipping sync (same version): {match_absolute_path}"
+                            )
                         final_conf[match_absolute_path][0] = curr_root_path
 
                 if updated_version:
