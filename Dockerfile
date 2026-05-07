@@ -10,7 +10,7 @@ EXPOSE 7681
 RUN dnf upgrade -y && dnf install -y dnf-plugins-core
 RUN dnf copr enable -y varlad/zellij && dnf copr enable -y totalfreak/lazygit
 RUN dnf install -y binutils rsync mandoc ncat \
-    openssh sshd openssl ca-certificates gnupg1 net-tools git-lfs cmatrix cowsay \
+    openssh sshd openssl ca-certificates gnupg2 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
     telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq
