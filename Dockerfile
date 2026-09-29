@@ -13,7 +13,7 @@ RUN dnf install -y binutils rsync mandoc ncat \
     openssh sshd openssl ca-certificates gnupg2 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
-    telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq jq krb5-workstation fd-find xdg-utils
+    telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq jq krb5-workstation fd-find file
 RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 # Add macro to disable signature checks
 RUN echo '%_pkgverify_level none' >> /etc/rpm/macros
