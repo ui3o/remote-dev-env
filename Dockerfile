@@ -1,4 +1,4 @@
-FROM docker.io/fedora:46
+FROM docker.io/fedora:45
 
 # ARGS
 ARG TARGETPLATFORM
