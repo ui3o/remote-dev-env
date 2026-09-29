@@ -1,4 +1,4 @@
-FROM docker.io/fedora:45
+FROM docker.io/fedora:46
 
 # ARGS
 ARG TARGETPLATFORM
@@ -15,7 +15,8 @@ RUN dnf install -y binutils rsync mandoc ncat \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
     telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq jq krb5-workstation fd-find xdg-utils
 RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
-
+# Add macro to disable signature checks
+RUN echo '%_pkgverify_level none' >> /etc/rpm/macros
 RUN curl -L https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$(arch) -o /opt/ttyd && \
     chmod +x /opt/ttyd
 
