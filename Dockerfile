@@ -103,7 +103,9 @@ WORKDIR /
 RUN ln -s /etc/units /usr/share/igo/.runtime/units/system && \
     ln -sf /root/.config/units /usr/share/igo/.runtime/units/root
 
-RUN ssh-keygen -A
+RUN ssh-keygen -q -N "" -t rsa -f /etc/ssh/ssh_host_rsa_key && \
+    ssh-keygen -q -N "" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key && \
+    ssh-keygen -q -N "" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
 WORKDIR /usr/share/igo/issh
 RUN npm i
 
