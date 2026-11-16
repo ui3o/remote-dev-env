@@ -5,6 +5,8 @@ ARG TARGETPLATFORM
 RUN echo "export ARCH=$(echo $TARGETPLATFORM | { IFS=/ read _ ARCH _; echo $ARCH; })" >> /arch
 EXPOSE 10123
 EXPOSE 7681
+# DNS gateway ports
+EXPOSE 80/tcp 443/tcp 53/udp
 
 # install base packages host
 RUN dnf upgrade -y && dnf install -y dnf-plugins-core
@@ -13,7 +15,7 @@ RUN dnf install -y binutils rsync mandoc ncat \
     openssh sshd openssl ca-certificates gnupg2 net-tools git-lfs cmatrix cowsay \
     htop sssd procps-ng ncdu xz nnn ranger zsh git neovim tmux \
     fzf make tree unzip podman fuse-overlayfs less zellij ripgrep lazygit lsof golang \
-    telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq jq krb5-workstation fd-find file python3-devel
+    telnet iputils zlib-devel zip musl-gcc hostname socat dnsmasq jq krb5-workstation fd-find file python3-devel umoci
 RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 # Add macro to disable signature checks
 RUN echo '%_pkgverify_level none' >> /etc/rpm/macros
@@ -72,14 +74,6 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 RUN . /arch;echo [$ARCH] install code-server extensions... && \
     code-server --install-extension golang.go && \
     code-server --install-extension ms-vscode.makefile-tools && \
-#     code-server --install-extension redhat.java && \
-#     code-server --install-extension vscjava.vscode-java-debug && \
-#     code-server --install-extension vscjava.vscode-java-dependency && \
-#     code-server --install-extension vscjava.vscode-java-pack && \
-#     code-server --install-extension vscjava.vscode-java-test && \
-#     code-server --install-extension vscjava.vscode-maven && \
-#     code-server --install-extension wmanth.jar-viewer && \
-#     code-server --install-extension KylinIDETeam.gitlens && \
     echo [$ARCH] finish extension install.sh..
 
 COPY ./config/user/ /root/
@@ -88,8 +82,6 @@ VOLUME /var/lib/shared-containers
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 
 RUN chmod 4755 /usr/bin/newgidmap /usr/bin/newuidmap
-# RUN chown -R podman:podman /home/podman && \
-#     mkdir -p /home/podman/.local/share/containers
 
 ENV PATH="/root/.local/bin:/root/go/bin:$PATH"
 
@@ -109,6 +101,13 @@ RUN ssh-keygen -q -N "" -t rsa -f /etc/ssh/ssh_host_rsa_key && \
 WORKDIR /usr/share/igo/issh
 RUN npm i
 
+WORKDIR /usr/share/igo/addons/dns-gateway
+RUN wget https://github.com/ui3o/dns-gateway/archive/main.tar.gz && \
+    tar -xzf main.tar.gz && \
+    cp -a ./dns-gateway-main/dns-gateway /etc/dns-gateway && \
+    cp -a ./dns-gateway-main/config.py ./dns-gateway-main/src/. . && \
+    rm -rf main.tar.gz ./dns-gateway-main
+RUN GOOS=linux go build -o dns-gateway.disabled .
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
