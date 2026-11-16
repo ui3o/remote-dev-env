@@ -110,11 +110,18 @@ def layer_exists(root_path: str, abs_path: str) -> bool:
 
 
 def create_symlinks(final_conf):
-    for value in final_conf.values():
+    # Parents first, so a nested path is already covered by its parent's link.
+    for value in sorted(final_conf.values(), key=lambda v: v[1].rstrip("/").count("/")):
         msg(f"value is: {value}")
         source = value[1]
         destination = value[0] + source
         msg(f"Creating symlinks at {source} to => {destination}")
+        if os.path.realpath(source) == os.path.realpath(destination):
+            msg(f"{source} already resolves to {destination}, skipping")
+            continue
+        if os.path.islink(source):
+            execute(f"ln -snf {shell_quote(destination)} {shell_quote(source)}")
+            continue
         if os.path.exists(source):
             dirname = os.path.dirname(source)
             basename = os.path.basename(source)
@@ -178,9 +185,7 @@ def main():
                             rsync_files(prev_root_path, curr_root_path, match_absolute_path, match_sync_mode)
                             updated_version = match_version
                         else:
-                            msg(
-                                f"Skipping sync (same version): {match_absolute_path}"
-                            )
+                            msg(f"Skipping sync (same version): {match_absolute_path}")
                         final_conf[match_absolute_path][0] = curr_root_path
 
                 if updated_version:
