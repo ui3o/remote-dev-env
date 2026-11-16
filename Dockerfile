@@ -101,13 +101,6 @@ RUN ssh-keygen -q -N "" -t rsa -f /etc/ssh/ssh_host_rsa_key && \
 WORKDIR /usr/share/igo/issh
 RUN npm i
 
-WORKDIR /usr/share/igo/addons/dns-gateway
-RUN wget https://github.com/ui3o/dns-gateway/archive/main.tar.gz && \
-    tar -xzf main.tar.gz && \
-    cp -a ./dns-gateway-main/dns-gateway /etc/dns-gateway && \
-    cp -a ./dns-gateway-main/config.py ./dns-gateway-main/src/. . && \
-    rm -rf main.tar.gz ./dns-gateway-main
-RUN GOOS=linux go build -o dns-gateway.disabled .
 WORKDIR /usr/share/igo/igo
 RUN GOOS=linux go build -o igo .
 WORKDIR /usr/share/igo/addons/reverseproxy
@@ -118,6 +111,13 @@ WORKDIR /usr/share/igo/addons/portlocker
 RUN GOOS=linux go build -o portlocker.disabled .
 WORKDIR /usr/share/igo/addons/dnsupdater
 RUN GOOS=linux go build -o dnsupdater.disabled .
+WORKDIR /usr/share/igo/addons/dns-gateway
+RUN wget https://github.com/ui3o/dns-gateway/archive/main.tar.gz && \
+    tar -xzf main.tar.gz && \
+    cp -a ./dns-gateway-main/dns-gateway /etc/dns-gateway && \
+    cp -a ./dns-gateway-main/config.py ./dns-gateway-main/src/. . && \
+    rm -rf main.tar.gz ./dns-gateway-main
+RUN GOOS=linux go build -o dns-gateway.disabled .
 WORKDIR /usr/share/igo
 
 ENV GIN_MODE=release
