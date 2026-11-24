@@ -13,6 +13,9 @@ podman ps
 mkdir -p /var/lib/containers/storage/tmp
 
 /shared/.layers/etc/boot.sh >> /tmp/boot.log 2>&1 || true
+cd /usr/share
+python3 -m boot >> /tmp/boot.log 2>&1 || true
+cd -
 
 mkdir -p /usr/share/igo/.runtime/units /tmp/.runtime/logins /run/secrets/runtime
 echo root:10000:5000 >/etc/subuid
